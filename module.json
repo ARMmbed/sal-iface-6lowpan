@@ -1,0 +1,24 @@
+{
+  "name": "mbed-6lowpan-adaptor",
+  "version": "0.0.0",
+  "description": "Socket and configuration API for mesh stack.",
+  "keywords": [],
+  "author": "Arto Kinnunen <arto.kinnunen@arm.com>",
+  "homepage": "http://git.oulu.arm.com:8080/gitweb?p=mped-6lowpan-adaptor.git;a=summary",
+  "licenses": [
+    {
+      "url": "https://spdx.org/licenses/Apache-2.0",
+      "type": "Apache-2.0"
+    }
+  ],
+  "private": true,
+  "dependencies": {
+    "mbed-6lowpan": "~0.0.6",
+    "mbed": "~3.0.1",
+    "mbed-net-sockets": "ARMmbed/mbed-net-sockets#~0.1.0",
+    "mbed-client-libservice": "~2.0.9",
+    "atmel-rf-driver": "~0.0.9"
+  },
+  "testDependencies": { },
+  "targetDependencies": {}
+}
