@@ -127,15 +127,6 @@ int8_t nanostack_socket_network_connect_impl(func_cb_t callback)
     return error_status;
 }
 
-sock_data_s* create_socket_data(void)
-{
-    sock_data_s * data = (sock_data_s *) MALLOC(
-            sizeof(sock_data_s));
-    data->socket_id = -1; // -1 indicates failure
-    data->security_session_id = 0;
-    return data;
-}
-
 void nanostack_release_socket_data_impl(sock_data_s *sock_data_ptr)
 {
     FREE(sock_data_ptr);
@@ -157,10 +148,16 @@ sock_data_s* nanostack_socket_open_impl(int8_t socket_type, int8_t identifier, v
         protocol = SOCKET_UDP;
     }
 
-    sock_data_s *sock_data_ptr = create_socket_data();
-    sock_data_ptr->socket_id = socket_open(protocol, identifier, socket_callback);
-    // save context to table so that callbacks can be made to right socket
-    socket_context_tbl[sock_data_ptr->socket_id].context = context;
+    sock_data_s *sock_data_ptr = (sock_data_s *) MALLOC(
+            sizeof(sock_data_s));
+    if (NULL != sock_data_ptr)
+    {
+        sock_data_ptr->security_session_id = 0;
+        sock_data_ptr->socket_id = socket_open(protocol, identifier,
+                socket_callback);
+        // save context to table so that callbacks can be made to right socket
+        socket_context_tbl[sock_data_ptr->socket_id].context = context;
+    }
 
     return sock_data_ptr;
 }

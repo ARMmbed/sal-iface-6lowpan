@@ -209,7 +209,11 @@ static socket_error_t nanostack_socket_create(struct socket *sock,
         return SOCKET_ERROR_BAD_FAMILY;
     }
 
-    if (-1 == sock_data_ptr->socket_id)
+    if (NULL == sock_data_ptr)
+    {
+        return SOCKET_ERROR_BAD_ALLOC;
+    }
+    else if (-1 == sock_data_ptr->socket_id)
     {
         nanostack_release_socket_data_impl(sock_data_ptr);
         return SOCKET_ERROR_UNKNOWN;
