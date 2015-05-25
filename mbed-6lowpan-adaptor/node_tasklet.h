@@ -1,8 +1,8 @@
 /*
- * Copyright (c) 2014 ARM. All rights reserved.
+ * Copyright (c) 2015 ARM. All rights reserved.
  */
-#ifndef _TASKLET_MAIN_
-#define _TASKLET_MAIN_
+#ifndef _NODE_TASKLET_MAIN_
+#define _NODE_TASKLET_MAIN_
 #include "ns_types.h"
 #include "eventOS_event.h"
 
@@ -22,4 +22,5 @@ extern void tasklet_main(arm_event_s *event);
  * \param function to be called when network is established
  */
 extern void node_tasklet_register_network_ready_cb(void (*network_ready_cb)(void));
-#endif
+
+#endif /* _NODE_TASKLET_MAIN_ */

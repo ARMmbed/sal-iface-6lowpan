@@ -17,9 +17,9 @@
 #include "ns_address.h"
 #include "mbed-6lowpan-adaptor/nanostack_socket_impl.h"
 #include "mbed-6lowpan-adaptor/node_tasklet.h"
+#include "mbed-6lowpan-adaptor/ns_sal_callback.h"
 #include "net_interface.h"
 #include "socket_api.h"	// nanostack(6lowpan) socket api
-#include "mbed-6lowpan-adaptor/nanostack_callback.h"
 #include "atmel-rf-driver/driverRFPhy.h"
 // For tracing we need to define flag, have include and define group
 #define HAVE_DEBUG 1
@@ -50,7 +50,7 @@ extern void event_dispatch_cycle(void);
 
 static void heap_error_handler(heap_fail_t event)
 {
-    tr_error("Error, heap_error_handler()");
+    tr_error("Error, heap_error_handler() %d", event);
     switch (event)
     {
         case NS_DYN_MEM_NULL_FREE:
@@ -199,6 +199,24 @@ void nanostack_run_impl(void)
 }
 
 
+void data_received(socket_callback_t *sock_cb) {
+    if (sock_cb->d_len > 0)
+    {
+        data_buff_t *recv_buff = (data_buff_t *) ns_dyn_mem_alloc(
+                sizeof(data_buff_t) + sock_cb->d_len);
+        if (NULL != recv_buff)
+        {
+            int16_t length = socket_read(sock_cb->socket_id,
+                    &recv_buff->ns_address, recv_buff->payload,
+                    sock_cb->d_len);
+            recv_buff->length = length;
+            recv_buff->next = NULL;
+
+            ns_sal_callback_data_received(socket_context_tbl[sock_cb->socket_id].context, recv_buff);
+            // allocated memory will be deallocated when application reads the data or when socket is closed
+        }
+    }
+}
 
 /*
  * Socket callback, will be called automatically by the socket.
@@ -214,11 +232,11 @@ void socket_callback(void *cb)
     {
     case SOCKET_DATA:
         tr_debug("SOCKET_DATA, %d bytes", sock_cb->d_len);
-        nanostack_data_received_callback(socket_context_tbl[sock_cb->socket_id].context);
+        data_received(sock_cb);
         break;
     case SOCKET_BIND_DONE:
         tr_debug("SOCKET_BIND_DONE");
-        nanostack_connect_callback(socket_context_tbl[sock_cb->socket_id].context);
+        ns_sal_callback_connect(socket_context_tbl[sock_cb->socket_id].context);
     break;
     case SOCKET_BIND_FAIL:
         tr_debug("SOCKET_BIND_FAIL");
@@ -243,12 +261,12 @@ void socket_callback(void *cb)
     break;
     case SOCKET_TX_DONE:
         tr_debug("SOCKET_TX_DONE, %d bytes sent", sock_cb->d_len);
-        nanostack_tx_done_callback(socket_context_tbl[sock_cb->socket_id].context, sock_cb->d_len);
+        ns_sal_callback_tx_done(socket_context_tbl[sock_cb->socket_id].context, sock_cb->d_len);
     break;
 
     default:
         // SOCKET_NO_RAM, error case for SOCKET_TX_DONE
-        nanostack_tx_error_callback(socket_context_tbl[sock_cb->socket_id].context);
+        ns_sal_callback_tx_error(socket_context_tbl[sock_cb->socket_id].context);
         break;
     }
 }

@@ -14,7 +14,8 @@
 #include "mbed-6lowpan-adaptor/nanostack_socket_impl.h"
 #include "net_interface.h"
 #include "ip6string.h"  //stoip6
-#include "mbed-6lowpan-adaptor/nanostack_callback.h"
+#include "mbed-6lowpan-adaptor/ns_sal_callback.h"
+#include "mbed-6lowpan-adaptor/ns_sal_utils.h"
 #include "common_functions.h"
 #include "nsdynmemLIB.h"
 #include "mbed-6lowpan-adaptor/nanostack_init.h"
@@ -29,7 +30,64 @@
 // Forward declaration of this socket_api
 const struct socket_api nanostack_socket_api;
 
-void send_socket_callback(struct socket *socket, socket_event_t *e);
+uint8_t copy_datagrams(struct socket *socket, uint8_t *dest, size_t *len, struct socket_addr *addr, uint16_t *port)
+{
+    data_buff_t *data_buf = (data_buff_t*)socket->rxBufChain;
+    ns_address_t first_blob_ns_address;
+    uint16_t copied_total = 0;
+    uint8_t data_left = 1;
+
+    convert_ns_addr_to_mbed(addr, &data_buf->ns_address, port);
+
+    /* save origin of first datagram */
+    memcpy(&first_blob_ns_address, &data_buf->ns_address, sizeof(ns_address_t));
+
+    for(;len != 0 && NULL != data_buf;)
+    {
+        if (0 != copied_total)
+        {
+            /* Skip copying if data origin differs */
+            if (0 != memcmp(&first_blob_ns_address, &data_buf->ns_address, sizeof(ns_address_t)))
+            {
+                break;
+            }
+        }
+
+        if ((data_buf->length + copied_total) > *len)
+        {
+            /* Partial copy, more data than space avail */
+            uint16_t partial_amount = *len - copied_total;
+            if (0 != partial_amount)
+            {
+                memcpy(&dest[copied_total], &data_buf->payload, partial_amount);
+                copied_total += partial_amount;
+                /* move memory to start of payload and adjust length */
+                memmove(&data_buf->payload[0],
+                        &data_buf->payload[partial_amount],
+                        data_buf->length - partial_amount);
+                data_buf->length -= partial_amount;
+            }
+            break;
+        }
+        else
+        {
+            /* Full copy, copy whole buffer to dest and move next one to first */
+            memcpy(&dest[copied_total], data_buf->payload, data_buf->length);
+            copied_total += data_buf->length;
+            socket->rxBufChain = data_buf->next;
+            FREE(data_buf);
+            data_buf = (data_buff_t*)socket->rxBufChain;
+            if (NULL == data_buf)
+            {
+                data_left = 0;
+            }
+        }
+    }
+
+    *len = copied_total;
+
+    return data_left;
+}
 
 /*** PUBLIC METHODS ***/
 /*
@@ -121,36 +179,6 @@ void nanostack_run(void)
 
 /*** PRIVATE METHODS ***/
 
-/*
- * translate mbed address to NanoStack address structure.
- */
-void transform_addr_to_ns(ns_address_t *ns_addr,
-        const struct socket_addr *s_addr, uint16_t port)
-{
-    ns_addr->type = ADDRESS_IPV6;
-    ns_addr->identifier = port;
-    memcpy(ns_addr->address, s_addr->storage, 16);
-}
-
-/*
- * translate NanoStack address to mbed address.
- */
-void transform_addr_to_mbed(struct socket_addr *s_addr, ns_address_t *ns_addr,
-        uint16_t *port)
-{
-    *port = ns_addr->identifier;
-    if (ADDRESS_IPV4 == ns_addr->type)
-    {
-        // TODO: Fix address type when it is available in the API
-        s_addr->type = SOCKET_STACK_NANOSTACK_IPV6;
-    }
-    else
-    {
-        s_addr->type = SOCKET_STACK_NANOSTACK_IPV6;
-    }
-    memcpy(s_addr->storage, ns_addr->address, 16);
-}
-
 socket_error_t recv_validate(struct socket *socket, void * buf, size_t *len)
 {
     if (socket == NULL || len == NULL || buf == NULL || socket->impl == NULL)
@@ -161,6 +189,11 @@ socket_error_t recv_validate(struct socket *socket, void * buf, size_t *len)
     if (*len == 0)
     {
         return SOCKET_ERROR_SIZE;
+    }
+
+    if (NULL == socket->rxBufChain)
+    {
+        return SOCKET_ERROR_WOULD_BLOCK;
     }
 
     return SOCKET_ERROR_NONE;
@@ -236,6 +269,14 @@ static socket_error_t nanostack_socket_destroy(struct socket *sock)
         return SOCKET_ERROR_NULL_PTR;
     }
 
+    data_buff_t *data_buf = (data_buff_t*)sock->rxBufChain;
+    while (NULL != data_buf)
+    {
+        data_buff_t *tmp_buf = data_buf;
+        data_buf = data_buf->next;
+        FREE(tmp_buf);
+    }
+
     if (NULL != sock->impl)
     {
         int8_t status = nanostack_socket_free_impl(sock->impl);
@@ -298,7 +339,7 @@ socket_error_t nanostack_socket_connect(struct socket *sock,
     }
 
     ns_address_t ns_address;
-    transform_addr_to_ns(&ns_address, address, port);
+    convert_mbed_addr_to_ns(&ns_address, address, port);
     int8_t retval = nanostack_socket_connect_impl(sock->impl, &ns_address);
     switch (retval)
     {
@@ -349,12 +390,15 @@ uint32_t nanostack_socket_periodic_interval(const struct socket * socket)
 socket_error_t nanostack_socket_resolve(struct socket *socket,
         const char *address)
 {
+    /* TODO: Implement DNS resolving */
     socket_event_t e;
     e.event = SOCKET_EVENT_DNS;
     e.i.d.addr.type = SOCKET_STACK_NANOSTACK_IPV6;
     e.i.d.domain = address;
     stoip6(address, strlen(address), e.i.d.addr.storage);
-    send_socket_callback(socket, &e);
+    socket->event = &e;
+    ((socket_api_handler_t) (socket->handler))();
+    socket->event = NULL;
     return SOCKET_ERROR_NONE;
 }
 
@@ -363,6 +407,7 @@ socket_error_t nanostack_str2addr(const struct socket *sock,
         struct socket_addr *addr, const char *address)
 {
     socket_error_t err = SOCKET_ERROR_NONE;
+    tr_debug("nanostack_str2addr() %s", address);
     if (NULL == addr || NULL == address)
     {
         err = SOCKET_ERROR_NULL_PTR;
@@ -468,7 +513,7 @@ socket_error_t nanostack_socket_send_to(struct socket *socket, const void * buf,
     case SOCKET_DGRAM:
     {
         ns_address_t ns_address;
-        transform_addr_to_ns(&ns_address, addr, port);
+        convert_mbed_addr_to_ns(&ns_address, addr, port);
         send_to_status = nanostack_socket_send_to_impl(socket->impl,
                 &ns_address, (uint8_t*) buf, len);
         /*
@@ -511,36 +556,27 @@ socket_error_t nanostack_socket_recv_from(struct socket *socket, void *buf,
         size_t *len, struct socket_addr *addr, uint16_t *port)
 {
     socket_error_t err = recv_validate(socket, buf, len);
-    if (err != SOCKET_ERROR_NONE)
-    {
+    if (err != SOCKET_ERROR_NONE) {
         return err;
     }
 
-    if (addr == NULL || port == NULL)
+    if(NULL == addr || NULL == port)
     {
         return SOCKET_ERROR_NULL_PTR;
     }
 
-    if (*len < 1)
+    if (0 != copy_datagrams(socket, buf, len, addr, port))
     {
-        tr_error("Receive buffer too small %d", *len);
-        return SOCKET_ERROR_SIZE;
+        /*
+         * more data left in the buffer, should we send data_received callback again?
+         * Or would it end up in recursion in case client read data directly from callback?
+         * Maybe clients should read until WOULD_BLOCK error is received to be sure that read buffer is empty
+         */
+        //ns_sal_callback_data_received(socket, NULL);
     }
 
-    ns_address_t ns_address;
-    transform_addr_to_ns(&ns_address, addr, *port);
 
-    int8_t read_len = nanostack_socket_recv_from_imp(socket->impl, &ns_address,
-            (uint8_t*) buf, *len);
-
-    if (read_len > 0)
-    {
-        transform_addr_to_mbed(addr, &ns_address, port);
-        *len = read_len;
-        return SOCKET_ERROR_NONE;
-    }
-
-    return SOCKET_ERROR_UNKNOWN;
+    return SOCKET_ERROR_NONE;
 }
 
 /* socket_api function, see socket_api.h for details */
@@ -576,93 +612,30 @@ uint8_t nanostack_socket_rx_is_busy(const struct socket *socket)
 }
 
 /*
- * Socket handling functions
+ * Socket API function pointer table.
  */
 const struct socket_api nanostack_socket_api =
-        {
-                .stack = SOCKET_STACK_NANOSTACK_IPV6,
-                .init = init,
-                .create = nanostack_socket_create,
-                .destroy = nanostack_socket_destroy,
-                .close = nanostack_socket_close,
-                .periodic_task = nanostack_socket_periodic_task,
-                .periodic_interval = nanostack_socket_periodic_interval,
-                .resolve = nanostack_socket_resolve,
-                .connect = nanostack_socket_connect,
-                .str2addr = nanostack_str2addr,
-                .bind = nanostack_socket_bind,
-                .start_listen = nanostack_start_listen,
-                .stop_listen = nanostack_stop_listen,
-                .accept = nanostack_socket_accept,
-                .send = nanostack_socket_send,
-                .send_to = nanostack_socket_send_to,
-                .recv = nanostack_socket_recv,
-                .recv_from = nanostack_socket_recv_from,
-                .is_connected = nanostack_socket_is_connected,
-                .is_bound = nanostack_socket_is_bound,
-                .tx_busy = nanostack_socket_tx_is_busy,
-                .rx_busy = nanostack_socket_rx_is_busy
-        };
-
-/*
- * Callback from NanoStack socket, data received. Inform client that data should be read.
- */
-void nanostack_data_received_callback(void* context)
 {
-    socket_event_t e;
-    struct socket *socket = (struct socket*) context;
-    e.event = SOCKET_EVENT_RX_DONE;
-    e.sock = socket;
-    e.i.e = SOCKET_ERROR_NONE;
-
-    send_socket_callback(socket, &e);
-}
-
-/*
- * Callback from NanoStack socket, data sent.
- */
-void nanostack_tx_done_callback(void* context, uint16_t length)
-{
-    socket_event_t e;
-    struct socket *socket = (struct socket*) context;
-    e.event = SOCKET_EVENT_TX_DONE;
-    e.sock = socket;
-    e.i.t.sentbytes = length;
-    send_socket_callback(socket, &e);
-}
-
-/*
- * Callback from NanoStack socket, data sending error.
- */
-void nanostack_tx_error_callback(void* context)
-{
-    socket_event_t e;
-    struct socket *socket = (struct socket*) context;
-    e.event = SOCKET_EVENT_TX_ERROR;
-    e.sock = socket;
-    e.i.t.sentbytes = 0;
-    send_socket_callback(socket, &e);
-}
-
-void nanostack_connect_callback(void* context)
-{
-    socket_event_t e;
-    struct socket *socket = (struct socket*) context;
-    e.event = SOCKET_EVENT_CONNECT;
-    socket->status |= SOCKET_STATUS_CONNECTED;
-    e.sock = socket;
-    send_socket_callback(socket, &e);
-}
-
-/*
- * \brief Send callback to mbed socket
- */
-void send_socket_callback(struct socket *socket, socket_event_t *e)
-{
-
-    tr_debug("send_socket_callback() event=%d", e->event);
-    socket->event = e;
-    ((socket_api_handler_t) (socket->handler))();
-    socket->event = NULL;
-}
-
+    .stack = SOCKET_STACK_NANOSTACK_IPV6,
+    .init = init,
+    .create = nanostack_socket_create,
+    .destroy = nanostack_socket_destroy,
+    .close = nanostack_socket_close,
+    .periodic_task = nanostack_socket_periodic_task,
+    .periodic_interval = nanostack_socket_periodic_interval,
+    .resolve = nanostack_socket_resolve,
+    .connect = nanostack_socket_connect,
+    .str2addr = nanostack_str2addr,
+    .bind = nanostack_socket_bind,
+    .start_listen = nanostack_start_listen,
+    .stop_listen = nanostack_stop_listen,
+    .accept = nanostack_socket_accept,
+    .send = nanostack_socket_send,
+    .send_to = nanostack_socket_send_to,
+    .recv = nanostack_socket_recv,
+    .recv_from = nanostack_socket_recv_from,
+    .is_connected = nanostack_socket_is_connected,
+    .is_bound = nanostack_socket_is_bound,
+    .tx_busy = nanostack_socket_tx_is_busy,
+    .rx_busy = nanostack_socket_rx_is_busy
+};
