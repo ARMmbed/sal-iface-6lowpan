@@ -7,7 +7,6 @@
  */
 
 #include <string.h> // memcpy
-#include <stdio.h>
 
 #include <mbed-net-socket-abstract/socket_api.h>
 #include "ns_address.h"
@@ -30,63 +29,23 @@
 // Forward declaration of this socket_api
 const struct socket_api nanostack_socket_api;
 
-uint8_t copy_datagrams(struct socket *socket, uint8_t *dest, size_t *len, struct socket_addr *addr, uint16_t *port)
+void copy_datagrams(struct socket *socket, uint8_t *dest, size_t *len,
+        struct socket_addr *addr, uint16_t *port)
 {
-    data_buff_t *data_buf = (data_buff_t*)socket->rxBufChain;
-    ns_address_t first_blob_ns_address;
-    uint16_t copied_total = 0;
-    uint8_t data_left = 1;
+    data_buff_t *data_buf = (data_buff_t*) socket->rxBufChain;
 
     convert_ns_addr_to_mbed(addr, &data_buf->ns_address, port);
 
-    /* save origin of first datagram */
-    memcpy(&first_blob_ns_address, &data_buf->ns_address, sizeof(ns_address_t));
-
-    for(;len != 0 && NULL != data_buf;)
+    if ((data_buf->length) > *len)
     {
-        if (0 != copied_total)
-        {
-            /* Skip copying if data origin differs */
-            if (0 != memcmp(&first_blob_ns_address, &data_buf->ns_address, sizeof(ns_address_t)))
-            {
-                break;
-            }
-        }
-
-        if ((data_buf->length + copied_total) > *len)
-        {
-            /* Partial copy, more data than space avail */
-            uint16_t partial_amount = *len - copied_total;
-            if (0 != partial_amount)
-            {
-                memcpy(&dest[copied_total], &data_buf->payload, partial_amount);
-                copied_total += partial_amount;
-                /* move memory to start of payload and adjust length */
-                memmove(&data_buf->payload[0],
-                        &data_buf->payload[partial_amount],
-                        data_buf->length - partial_amount);
-                data_buf->length -= partial_amount;
-            }
-            break;
-        }
-        else
-        {
-            /* Full copy, copy whole buffer to dest and move next one to first */
-            memcpy(&dest[copied_total], data_buf->payload, data_buf->length);
-            copied_total += data_buf->length;
-            socket->rxBufChain = data_buf->next;
-            FREE(data_buf);
-            data_buf = (data_buff_t*)socket->rxBufChain;
-            if (NULL == data_buf)
-            {
-                data_left = 0;
-            }
-        }
+        /* Partial copy, more data than space avail */
+        data_buf->length = *len;
     }
 
-    *len = copied_total;
-
-    return data_left;
+    memcpy(dest, data_buf->payload, data_buf->length);
+    *len = data_buf->length;
+    socket->rxBufChain = data_buf->next;
+    FREE(data_buf);
 }
 
 /*** PUBLIC METHODS ***/
@@ -565,16 +524,7 @@ socket_error_t nanostack_socket_recv_from(struct socket *socket, void *buf,
         return SOCKET_ERROR_NULL_PTR;
     }
 
-    if (0 != copy_datagrams(socket, buf, len, addr, port))
-    {
-        /*
-         * more data left in the buffer, should we send data_received callback again?
-         * Or would it end up in recursion in case client read data directly from callback?
-         * Maybe clients should read until WOULD_BLOCK error is received to be sure that read buffer is empty
-         */
-        //ns_sal_callback_data_received(socket, NULL);
-    }
-
+    copy_datagrams(socket, buf, len, addr, port);
 
     return SOCKET_ERROR_NONE;
 }
