@@ -1,9 +1,8 @@
 /*
- * PackageLicenseDeclared: Apache-2.0
- * Copyright 2015 ARM Holdings PLC
+ * Copyright (c) 2015 ARM. All rights reserved.
  */
-#ifndef MBED_NANOSTACK_INIT_H_
-#define MBED_NANOSTACK_INIT_H_
+#ifndef _MESH_INTERFACE_H_
+#define _MESH_INTERFACE_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -12,24 +11,24 @@ extern "C" {
 typedef void (*network_ready_cb_t)(void);
 
 /*
- * \brief NanoStack initialization method. Called by application.
+ * \brief Mesh network initialization method. Called by application.
  */
-socket_error_t nanostack_init(void);
+socket_error_t mesh_interface_init(void);
 
 /*
- * \brief Connect NanoStack to mesh network
+ * \brief Connect node to mesh network
  * \param network_ready_cb is a callback function that is called when network is established.
  * \return SOCKET_ERROR_NONE on success.
  * \return SOCKET_ERROR_UNKNOWN when connection can't be made.
  */
-socket_error_t nanostack_connect(network_ready_cb_t callback_func);
+socket_error_t mesh_interface_connect(network_ready_cb_t callback_func);
 
 /*
- * \brief Disconnect NanoStack from mesh network
+ * \brief Disconnect node from mesh network
  * \return SOCKET_ERROR_NONE on success.
  * \return SOCKET_ERROR_UNKNOWN when disconnect fails
  */
-socket_error_t nanostack_disconnect(void);
+socket_error_t mesh_interface_disconnect(void);
 
 /*
  * \brief Get node IP address. This method can be called when network is established.
@@ -38,7 +37,7 @@ socket_error_t nanostack_disconnect(void);
  * \return SOCKET_ERROR_NONE on success
  * \return SOCKET_ERROR_UNKNOWN if address can't be read
  */
-socket_error_t nanostack_get_ip_address(char *address, int8_t len);
+socket_error_t mesh_interface_get_ip_address(char *address, int8_t len);
 
 /*
  * \brief Get router IP address. This method can be called when network is established.
@@ -47,15 +46,15 @@ socket_error_t nanostack_get_ip_address(char *address, int8_t len);
  * \return SOCKET_ERROR_NONE on success
  * \return SOCKET_ERROR_UNKNOWN if address can't be read
  */
-socket_error_t nanostack_get_router_ip_address(char *address, int8_t len);
+socket_error_t mesh_interface_get_router_ip_address(char *address, int8_t len);
 
 /*
- * \brief Nanostack event handling. Stack is using events in the background and
+ * \brief Mesh network event running. Stack is using events in the background and
  * application needs to call this function constantly to keep stack running.
  */
-void nanostack_run(void);
+void mesh_interface_run(void);
 
 #ifdef __cplusplus
 }
 #endif
-#endif // MBED_NANOSTACK_INIT_H_
+#endif // _MESH_INTERFACE_H_

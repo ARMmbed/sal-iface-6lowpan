@@ -10,18 +10,18 @@
 
 #include <mbed-net-socket-abstract/socket_api.h>
 #include "ns_address.h"
-#include "mbed-6lowpan-adaptor/nanostack_socket_impl.h"
 #include "net_interface.h"
 #include "ip6string.h"  //stoip6
 #include "mbed-6lowpan-adaptor/ns_sal_callback.h"
 #include "mbed-6lowpan-adaptor/ns_sal_utils.h"
+#include "mbed-6lowpan-adaptor/ns_wrapper.h"
+#include "mbed-6lowpan-adaptor/mesh_interface.h"
 #include "common_functions.h"
 #include "nsdynmemLIB.h"
-#include "mbed-6lowpan-adaptor/nanostack_init.h"
 // For tracing we need to define flag, have include and define group
 #define HAVE_DEBUG 1
 #include "ns_trace.h"
-#define TRACE_GROUP  "ns_sock"
+#define TRACE_GROUP  "ns_sal"
 
 #define MALLOC  ns_dyn_mem_alloc
 #define FREE    ns_dyn_mem_free
@@ -29,7 +29,23 @@
 // Forward declaration of this socket_api
 const struct socket_api nanostack_socket_api;
 
-void copy_datagrams(struct socket *socket, uint8_t *dest, size_t *len,
+/*** PUBLIC METHODS ***/
+/*
+ * \brief NanoStack initialization method. Called by application.
+ */
+socket_error_t ns_sal_init_stack(void)
+{
+    int8_t retval = ns_wrapper_socket_init();
+    if (0 > retval)
+    {
+        return SOCKET_ERROR_UNKNOWN;
+    }
+
+    return socket_register_stack(&nanostack_socket_api);
+}
+
+/*** PRIVATE METHODS ***/
+void ns_sal_copy_datagrams(struct socket *socket, uint8_t *dest, size_t *len,
         struct socket_addr *addr, uint16_t *port)
 {
     data_buff_t *data_buf = (data_buff_t*) socket->rxBufChain;
@@ -48,97 +64,7 @@ void copy_datagrams(struct socket *socket, uint8_t *dest, size_t *len,
     FREE(data_buf);
 }
 
-/*** PUBLIC METHODS ***/
-/*
- * \brief NanoStack initialization method. Called by application.
- */
-socket_error_t nanostack_init(void)
-{
-    int8_t retval = nanostack_socket_init_impl();
-    if (0 > retval)
-    {
-        return SOCKET_ERROR_UNKNOWN;
-    }
-
-    return socket_register_stack(&nanostack_socket_api);
-}
-
-/*
- * \brief Connect NanoStack to mesh network
- * \param callback_func, function that is called when network is established.
- * \return SOCKET_ERROR_NONE on success.
- * \return SOCKET_ERROR_UNKNOWN when connection can't be made.
- */
-socket_error_t nanostack_connect(network_ready_cb_t callback_func)
-{
-    int8_t retval;
-    retval = nanostack_socket_network_connect_impl(callback_func);
-    if (0 > retval)
-    {
-        return SOCKET_ERROR_UNKNOWN;
-    }
-    else
-    {
-        return SOCKET_ERROR_NONE;
-    }
-}
-
-/*
- * \brief Disconnect NanoStack from mesh network
- * \return SOCKET_ERROR_NONE on success.
- * \return SOCKET_ERROR_UNKNOWN when disconnect fails
- */
-socket_error_t nanostack_disconnect(void)
-{
-    tr_debug("nanostack_disconnect()");
-    return SOCKET_ERROR_NONE;
-}
-
-/*
- * \brief Get node IP address. This method can be called when network is established.
- * \param address buffer where address will be read
- * \param length of the buffer, must be at least 40 characters.
- * \return SOCKET_ERROR_NONE on success
- * \return SOCKET_ERROR_UNKNOWN if address can't be read
- */
-socket_error_t nanostack_get_ip_address(char *address, int8_t len)
-{
-    if (0 == nanostack_get_ip_address_impl(address, len))
-    {
-        return SOCKET_ERROR_NONE;
-    }
-
-    return SOCKET_ERROR_UNKNOWN;
-}
-
-/*
- * \brief Get router IP address. This method can be called when network is established.
- * \param address buffer where address will be read
- * \param length of the buffer, must be at least 40 characters.
- * \return SOCKET_ERROR_NONE on success
- * \return SOCKET_ERROR_UNKNOWN if address can't be read
- */
-socket_error_t nanostack_get_router_ip_address(char *address, int8_t len)
-{
-    if (0 == nanostack_get_router_ip_address_impl(address, len))
-    {
-        return SOCKET_ERROR_NONE;
-    }
-
-    return SOCKET_ERROR_UNKNOWN;
-}
-
-/*
- * \brief Handle NanoStack events.
- */
-void nanostack_run(void)
-{
-    nanostack_run_impl();
-}
-
-/*** PRIVATE METHODS ***/
-
-socket_error_t recv_validate(struct socket *socket, void * buf, size_t *len)
+socket_error_t ns_sal_recv_validate(struct socket *socket, void * buf, size_t *len)
 {
     if (socket == NULL || len == NULL || buf == NULL || socket->impl == NULL)
     {
@@ -161,19 +87,19 @@ socket_error_t recv_validate(struct socket *socket, void * buf, size_t *len)
 /*** SOCKET API METHODS ***/
 
 /* socket_api function, see socket_api.h for details */
-static socket_error_t init()
+static socket_error_t ns_sal_init()
 {
     return SOCKET_ERROR_NONE;
 }
 
 /* socket_api function, see socket_api.h for details */
-static socket_error_t nanostack_socket_create(struct socket *sock,
+static socket_error_t ns_sal_socket_create(struct socket *sock,
         const socket_address_family_t af, const socket_proto_family_t pf,
         socket_api_handler_t const handler)
 {
     sock_data_s *sock_data_ptr;
 
-    tr_debug("nanostack_socket_create() af=%d pf=%d", af, pf);
+    tr_debug("ns_sal_socket_create() af=%d pf=%d", af, pf);
 
     if (NULL == sock || NULL == handler)
     {
@@ -190,11 +116,11 @@ static socket_error_t nanostack_socket_create(struct socket *sock,
     switch (pf)
     {
     case SOCKET_DGRAM:
-        sock_data_ptr = nanostack_socket_open_impl(NANOSTACK_SOCKET_UDP, 0,
+        sock_data_ptr = ns_wrapper_socket_open(NANOSTACK_SOCKET_UDP, 0,
                 (void*) sock);
     break;
     case SOCKET_STREAM:
-        sock_data_ptr = nanostack_socket_open_impl(NANOSTACK_SOCKET_TCP, 0,
+        sock_data_ptr = ns_wrapper_socket_open(NANOSTACK_SOCKET_TCP, 0,
                 (void*) sock);
     break;
     default:
@@ -207,7 +133,7 @@ static socket_error_t nanostack_socket_create(struct socket *sock,
     }
     else if (-1 == sock_data_ptr->socket_id)
     {
-        nanostack_release_socket_data_impl(sock_data_ptr);
+        ns_wrapper_release_socket_data(sock_data_ptr);
         return SOCKET_ERROR_UNKNOWN;
     }
     sock->impl = sock_data_ptr;
@@ -219,10 +145,10 @@ static socket_error_t nanostack_socket_create(struct socket *sock,
 }
 
 /* socket_api function, see socket_api.h for details */
-static socket_error_t nanostack_socket_destroy(struct socket *sock)
+static socket_error_t ns_sal_socket_destroy(struct socket *sock)
 {
     socket_error_t err = SOCKET_ERROR_NONE;
-    tr_debug("nanostack_socket_destroy()");
+    tr_debug("ns_sal_socket_destroy()");
     if (NULL == sock)
     {
         return SOCKET_ERROR_NULL_PTR;
@@ -238,7 +164,7 @@ static socket_error_t nanostack_socket_destroy(struct socket *sock)
 
     if (NULL != sock->impl)
     {
-        int8_t status = nanostack_socket_free_impl(sock->impl);
+        int8_t status = ns_wrapper_socket_free(sock->impl);
         sock->impl = NULL;
         if (0 != status)
         {
@@ -250,7 +176,7 @@ static socket_error_t nanostack_socket_destroy(struct socket *sock)
 }
 
 /* socket_api function, see socket_api.h for details */
-static socket_error_t nanostack_socket_close(struct socket *sock)
+static socket_error_t ns_sal_socket_close(struct socket *sock)
 {
     socket_error_t error = SOCKET_ERROR_UNKNOWN;
     int8_t return_value;
@@ -259,7 +185,7 @@ static socket_error_t nanostack_socket_close(struct socket *sock)
         return SOCKET_ERROR_NULL_PTR;
     }
 
-    return_value = nanostack_socket_close_impl(sock->impl);
+    return_value = ns_wrapper_socket_close(sock->impl);
 
     switch (return_value)
     {
@@ -283,7 +209,7 @@ static socket_error_t nanostack_socket_close(struct socket *sock)
 }
 
 /* socket_api function, see socket_api.h for details */
-socket_error_t nanostack_socket_connect(struct socket *sock,
+socket_error_t ns_sal_socket_connect(struct socket *sock,
         const struct socket_addr *address, const uint16_t port)
 {
     socket_error_t error_code;
@@ -299,7 +225,7 @@ socket_error_t nanostack_socket_connect(struct socket *sock,
 
     ns_address_t ns_address;
     convert_mbed_addr_to_ns(&ns_address, address, port);
-    int8_t retval = nanostack_socket_connect_impl(sock->impl, &ns_address);
+    int8_t retval = ns_wrapper_socket_connect(sock->impl, &ns_address);
     switch (retval)
     {
     case 0:
@@ -323,10 +249,10 @@ void periodic_task(void)
     /* this will be called periodically when used, empty at the moment */
 }
 /* socket_api function, see socket_api.h for details */
-socket_api_handler_t nanostack_socket_periodic_task(
+socket_api_handler_t ns_sal_socket_periodic_task(
         const struct socket * socket)
 {
-    tr_debug("nanostack_socket_periodic_task()");
+    tr_debug("ns_sal_socket_periodic_task()");
     if (SOCKET_STREAM == socket->family)
     {
         return periodic_task;
@@ -335,9 +261,9 @@ socket_api_handler_t nanostack_socket_periodic_task(
 }
 
 /* socket_api function, see socket_api.h for details */
-uint32_t nanostack_socket_periodic_interval(const struct socket * socket)
+uint32_t ns_sal_socket_periodic_interval(const struct socket * socket)
 {
-    tr_debug("nanostack_socket_periodic_interval()");
+    tr_debug("ns_sal_socket_periodic_interval()");
     if (SOCKET_STREAM == socket->family)
     {
         return 0xffffffff;
@@ -346,7 +272,7 @@ uint32_t nanostack_socket_periodic_interval(const struct socket * socket)
 }
 
 /* socket_api function, see socket_api.h for details */
-socket_error_t nanostack_socket_resolve(struct socket *socket,
+socket_error_t ns_sal_socket_resolve(struct socket *socket,
         const char *address)
 {
     /* TODO: Implement DNS resolving */
@@ -362,11 +288,11 @@ socket_error_t nanostack_socket_resolve(struct socket *socket,
 }
 
 /* socket_api function, see socket_api.h for details */
-socket_error_t nanostack_str2addr(const struct socket *sock,
+socket_error_t ns_sal_str2addr(const struct socket *sock,
         struct socket_addr *addr, const char *address)
 {
     socket_error_t err = SOCKET_ERROR_NONE;
-    tr_debug("nanostack_str2addr() %s", address);
+    tr_debug("ns_sal_str2addr() %s", address);
     if (NULL == addr || NULL == address)
     {
         err = SOCKET_ERROR_NULL_PTR;
@@ -386,7 +312,7 @@ socket_error_t nanostack_str2addr(const struct socket *sock,
 }
 
 /* socket_api function, see socket_api.h for details */
-socket_error_t nanostack_socket_bind(struct socket *socket,
+socket_error_t ns_sal_socket_bind(struct socket *socket,
         const struct socket_addr *address, const uint16_t port)
 {
     /* Note, binding is not supported for UDP sockets */
@@ -397,7 +323,7 @@ socket_error_t nanostack_socket_bind(struct socket *socket,
 }
 
 /* socket_api function, see socket_api.h for details */
-socket_error_t nanostack_start_listen(struct socket *socket,
+socket_error_t ns_sal_start_listen(struct socket *socket,
         const uint32_t backlog)
 {
     (void) socket;
@@ -406,14 +332,14 @@ socket_error_t nanostack_start_listen(struct socket *socket,
 }
 
 /* socket_api function, see socket_api.h for details */
-socket_error_t nanostack_stop_listen(struct socket *socket)
+socket_error_t ns_sal_stop_listen(struct socket *socket)
 {
     (void) socket;
     return SOCKET_ERROR_UNIMPLEMENTED;
 }
 
 /* socket_api function, see socket_api.h for details */
-socket_error_t nanostack_socket_accept(struct socket *socket,
+socket_error_t ns_sal_socket_accept(struct socket *socket,
         socket_api_handler_t handler)
 {
     (void) socket;
@@ -422,7 +348,7 @@ socket_error_t nanostack_socket_accept(struct socket *socket,
 }
 
 /* socket_api function, see socket_api.h for details */
-socket_error_t nanostack_socket_send(struct socket *socket, const void * buf,
+socket_error_t ns_sal_socket_send(struct socket *socket, const void * buf,
         const size_t len)
 {
     socket_error_t err = SOCKET_ERROR_UNIMPLEMENTED;
@@ -432,7 +358,7 @@ socket_error_t nanostack_socket_send(struct socket *socket, const void * buf,
     }
     else if (SOCKET_STREAM == socket->family)
     {
-        int8_t status = nanostack_socket_send_impl(socket->impl, (uint8_t*) buf,
+        int8_t status = ns_wrapper_socket_send(socket->impl, (uint8_t*) buf,
                 len);
         switch (status)
         {
@@ -455,13 +381,13 @@ socket_error_t nanostack_socket_send(struct socket *socket, const void * buf,
 }
 
 /* socket_api function, see socket_api.h for details */
-socket_error_t nanostack_socket_send_to(struct socket *socket, const void * buf,
+socket_error_t ns_sal_socket_send_to(struct socket *socket, const void * buf,
         const size_t len, const struct socket_addr *addr, const uint16_t port)
 {
     socket_error_t error_status = SOCKET_ERROR_NONE;
     int8_t send_to_status;
 
-    tr_debug("nanostack_socket_send_to()");
+    tr_debug("ns_sal_socket_send_to()");
     if (NULL == socket || NULL == buf || 0 >= len)
     {
         return SOCKET_ERROR_NULL_PTR;
@@ -473,7 +399,7 @@ socket_error_t nanostack_socket_send_to(struct socket *socket, const void * buf,
     {
         ns_address_t ns_address;
         convert_mbed_addr_to_ns(&ns_address, addr, port);
-        send_to_status = nanostack_socket_send_to_impl(socket->impl,
+        send_to_status = ns_wrapper_socket_send_to(socket->impl,
                 &ns_address, (uint8_t*) buf, len);
         /*
          * \return 0 on success.
@@ -487,7 +413,7 @@ socket_error_t nanostack_socket_send_to(struct socket *socket, const void * buf,
 
         if (0 != send_to_status)
         {
-            tr_error("nanostack_socket_send_to: error=%d", send_to_status);
+            tr_error("ns_sal_socket_send_to: error=%d", send_to_status);
             error_status = SOCKET_ERROR_UNKNOWN;
         }
         break;
@@ -501,7 +427,7 @@ socket_error_t nanostack_socket_send_to(struct socket *socket, const void * buf,
 }
 
 /* socket_api function, see socket_api.h for details */
-socket_error_t nanostack_socket_recv(struct socket *socket, void * buf,
+socket_error_t ns_sal_socket_recv(struct socket *socket, void * buf,
         size_t *len)
 {
     (void) socket;
@@ -511,10 +437,10 @@ socket_error_t nanostack_socket_recv(struct socket *socket, void * buf,
 }
 
 /* socket_api function, see socket_api.h for details */
-socket_error_t nanostack_socket_recv_from(struct socket *socket, void *buf,
+socket_error_t ns_sal_socket_recv_from(struct socket *socket, void *buf,
         size_t *len, struct socket_addr *addr, uint16_t *port)
 {
-    socket_error_t err = recv_validate(socket, buf, len);
+    socket_error_t err = ns_sal_recv_validate(socket, buf, len);
     if (err != SOCKET_ERROR_NONE) {
         return err;
     }
@@ -524,13 +450,13 @@ socket_error_t nanostack_socket_recv_from(struct socket *socket, void *buf,
         return SOCKET_ERROR_NULL_PTR;
     }
 
-    copy_datagrams(socket, buf, len, addr, port);
+    ns_sal_copy_datagrams(socket, buf, len, addr, port);
 
     return SOCKET_ERROR_NONE;
 }
 
 /* socket_api function, see socket_api.h for details */
-uint8_t nanostack_socket_is_connected(const struct socket *socket)
+uint8_t ns_sal_socket_is_connected(const struct socket *socket)
 {
     // TODO: Not implemented
     (void) socket;
@@ -538,7 +464,7 @@ uint8_t nanostack_socket_is_connected(const struct socket *socket)
 }
 
 /* socket_api function, see socket_api.h for details */
-uint8_t nanostack_socket_is_bound(const struct socket *socket)
+uint8_t ns_sal_socket_is_bound(const struct socket *socket)
 {
     // TODO: Not implemented
     (void) socket;
@@ -546,7 +472,7 @@ uint8_t nanostack_socket_is_bound(const struct socket *socket)
 }
 
 /* socket_api function, see socket_api.h for details */
-uint8_t nanostack_socket_tx_is_busy(const struct socket *socket)
+uint8_t ns_sal_socket_tx_is_busy(const struct socket *socket)
 {
     // TODO: Not implemented
     (void) socket;
@@ -554,7 +480,7 @@ uint8_t nanostack_socket_tx_is_busy(const struct socket *socket)
 }
 
 /* socket_api function, see socket_api.h for details */
-uint8_t nanostack_socket_rx_is_busy(const struct socket *socket)
+uint8_t ns_sal_socket_rx_is_busy(const struct socket *socket)
 {
     // TODO: Not implemented
     (void) socket;
@@ -567,25 +493,25 @@ uint8_t nanostack_socket_rx_is_busy(const struct socket *socket)
 const struct socket_api nanostack_socket_api =
 {
     .stack = SOCKET_STACK_NANOSTACK_IPV6,
-    .init = init,
-    .create = nanostack_socket_create,
-    .destroy = nanostack_socket_destroy,
-    .close = nanostack_socket_close,
-    .periodic_task = nanostack_socket_periodic_task,
-    .periodic_interval = nanostack_socket_periodic_interval,
-    .resolve = nanostack_socket_resolve,
-    .connect = nanostack_socket_connect,
-    .str2addr = nanostack_str2addr,
-    .bind = nanostack_socket_bind,
-    .start_listen = nanostack_start_listen,
-    .stop_listen = nanostack_stop_listen,
-    .accept = nanostack_socket_accept,
-    .send = nanostack_socket_send,
-    .send_to = nanostack_socket_send_to,
-    .recv = nanostack_socket_recv,
-    .recv_from = nanostack_socket_recv_from,
-    .is_connected = nanostack_socket_is_connected,
-    .is_bound = nanostack_socket_is_bound,
-    .tx_busy = nanostack_socket_tx_is_busy,
-    .rx_busy = nanostack_socket_rx_is_busy
+    .init = ns_sal_init,
+    .create = ns_sal_socket_create,
+    .destroy = ns_sal_socket_destroy,
+    .close = ns_sal_socket_close,
+    .periodic_task = ns_sal_socket_periodic_task,
+    .periodic_interval = ns_sal_socket_periodic_interval,
+    .resolve = ns_sal_socket_resolve,
+    .connect = ns_sal_socket_connect,
+    .str2addr = ns_sal_str2addr,
+    .bind = ns_sal_socket_bind,
+    .start_listen = ns_sal_start_listen,
+    .stop_listen = ns_sal_stop_listen,
+    .accept = ns_sal_socket_accept,
+    .send = ns_sal_socket_send,
+    .send_to = ns_sal_socket_send_to,
+    .recv = ns_sal_socket_recv,
+    .recv_from = ns_sal_socket_recv_from,
+    .is_connected = ns_sal_socket_is_connected,
+    .is_bound = ns_sal_socket_is_bound,
+    .tx_busy = ns_sal_socket_tx_is_busy,
+    .rx_busy = ns_sal_socket_rx_is_busy
 };

@@ -28,5 +28,11 @@ int socket_api_test_echo_client_connected(socket_stack_t stack, socket_address_f
 int ns_udp_test_buffered_recv_from(socket_stack_t stack, socket_address_family_t af, socket_proto_family_t pf,
         const char* server, uint16_t port, run_func_t run_cb);
 
+/*
+ * \brief Test maximum received datagram size.
+ */
+int ns_udp_test_max_recv_from(socket_stack_t stack, socket_address_family_t af, socket_proto_family_t pf,
+        const char* server, uint16_t port, run_func_t run_cb);
+
 #endif /* __TEST_CASES_H__ */
 

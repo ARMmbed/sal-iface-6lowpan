@@ -4,8 +4,8 @@
 #include "mbed.h"
 #include <mbed-net-sockets/UDPSocket.h>
 #include <mbed-net-socket-abstract/socket_api.h>
-#include "mbed-6lowpan-adaptor/nanostack_init.h"
 #include "UDPTest.h"
+
 
 // For tracing we need to define flag, have include and define group
 #define HAVE_DEBUG 1

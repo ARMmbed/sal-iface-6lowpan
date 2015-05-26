@@ -5,14 +5,12 @@
 #include <mbed-net-sockets/UDPSocket.h>
 #include <mbed-net-socket-abstract/socket_api.h>
 #include "test_env.h"
-
+#include "mbed-6lowpan-adaptor/mesh_interface.h"
+#include "UDPTest.h"
 // For tracing we need to define flag, have include and define group
 #define HAVE_DEBUG 1
 #include "ns_trace.h"
 #define TRACE_GROUP  "main_appl"
-
-#include "mbed-6lowpan-adaptor/nanostack_init.h"
-#include "UDPTest.h"
 
 #define ECHO_PORT   7
 #define TEST_DATA   "Example UDP data message sent to gateway and echoed back!"
@@ -30,7 +28,7 @@ int main() {
     socket_error_t error_status;
     char router_addr[50];
 
-    error_status = nanostack_init();
+    error_status = mesh_interface_init();
     if (SOCKET_ERROR_NONE != error_status)
     {
         tr_error("Can't initialize NanoStack!");
@@ -38,7 +36,7 @@ int main() {
     }
     tr_info("NanoStack UDP Example, stack initialized");
 
-    error_status = nanostack_connect(nanostack_network_ready);
+    error_status = mesh_interface_connect(nanostack_network_ready);
 
     if (SOCKET_ERROR_NONE != error_status)
     {
@@ -48,13 +46,13 @@ int main() {
 
     do
     {
-        nanostack_run();
+        mesh_interface_run();
     } while(0 == network_ready);
 
     tr_info("NanoStack connected to network");
 
     tr_info("Start UDPTest");
-    if (SOCKET_ERROR_NONE == nanostack_get_router_ip_address(router_addr, sizeof(router_addr)))
+    if (SOCKET_ERROR_NONE == mesh_interface_get_router_ip_address(router_addr, sizeof(router_addr)))
     {
         tr_info("Echoing data to router IP address: %s", router_addr);
         udpTest = new UDPTest();
@@ -63,7 +61,7 @@ int main() {
 
     /* wait network to be established */
     do {
-        nanostack_run();
+        mesh_interface_run();
     } while(0 == udpTest->isReceived());
 
     tr_info("Response received from router:");
@@ -72,7 +70,7 @@ int main() {
     delete udpTest;
     udpTest = NULL;
 
-    nanostack_disconnect();
+    mesh_interface_disconnect();
 //    do
 //    {
 //        nanostack_run();

@@ -6,7 +6,7 @@
 #include <mbed-net-sockets/UDPSocket.h>
 #include <mbed-net-socket-abstract/socket_api.h>
 #include <mbed-net-socket-abstract/test/ctest_env.h>
-#include "mbed-6lowpan-adaptor/nanostack_init.h"
+#include "mbed-6lowpan-adaptor/mesh_interface.h"
 #include "test_cases.h"
 #include "mbed/test_env.h"
 
@@ -42,13 +42,13 @@ int main()
 
     do
     {
-        socket_error_t err = nanostack_init();
+        socket_error_t err = mesh_interface_init();
         if (!TEST_EQ(err, SOCKET_ERROR_NONE))
         {
             break;
         }
 
-        err = nanostack_connect(nanostack_network_ready);
+        err = mesh_interface_connect(nanostack_network_ready);
         if (!TEST_EQ(err, SOCKET_ERROR_NONE))
         {
             break;
@@ -56,7 +56,7 @@ int main()
 
         do
         {
-            nanostack_run();
+            mesh_interface_run();
         } while (0 == network_ready);
 
         rc = socket_api_test_create_destroy(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET4);
@@ -66,11 +66,13 @@ int main()
         tests_pass = tests_pass && rc;
 
         rc = socket_api_test_echo_client_connected(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_DGRAM,
-                false, TEST_SERVER, TEST_PORT, nanostack_run, NS_MAX_UDP_PACKET_SIZE);
+                false, TEST_SERVER, TEST_PORT, mesh_interface_run, NS_MAX_UDP_PACKET_SIZE);
         tests_pass = tests_pass && rc;
 
         rc = ns_udp_test_buffered_recv_from(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_DGRAM,
-                TEST_SERVER, TEST_PORT, nanostack_run);
+                TEST_SERVER, TEST_PORT, mesh_interface_run);
+        tests_pass = tests_pass && rc;
+
         tests_pass = tests_pass && rc;
 
     } while (0);
