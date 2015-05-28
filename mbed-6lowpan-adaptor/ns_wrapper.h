@@ -65,6 +65,11 @@ extern int8_t ns_wrapper_socket_network_connect(func_cb_t callback);
 extern sock_data_s* ns_wrapper_socket_open(int8_t socket_type, int8_t identifier, void *context);
 
 /*
+ * \brief Bind NanoStack socket
+ */
+extern int8_t ns_wrapper_socket_bind(sock_data_s *sock_data_ptr, ns_address_t *address);
+
+/*
  * \brief Release data allocated by NanoStack socket
  */
 extern void ns_wrapper_release_socket_data(sock_data_s *sock_data_ptr);

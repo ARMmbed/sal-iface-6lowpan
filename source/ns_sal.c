@@ -315,11 +315,15 @@ socket_error_t ns_sal_str2addr(const struct socket *sock,
 socket_error_t ns_sal_socket_bind(struct socket *socket,
         const struct socket_addr *address, const uint16_t port)
 {
-    /* Note, binding is not supported for UDP sockets */
-    (void) socket;
-    (void) address;
-    (void) port;
-    return SOCKET_ERROR_UNIMPLEMENTED;
+    ns_address_t ns_address;
+    convert_mbed_addr_to_ns(&ns_address, address, port);
+
+    if (0 == ns_wrapper_socket_bind(socket->impl, &ns_address))
+    {
+        return SOCKET_ERROR_NONE;
+    }
+
+    return SOCKET_ERROR_UNKNOWN;
 }
 
 /* socket_api function, see socket_api.h for details */
@@ -458,8 +462,8 @@ socket_error_t ns_sal_socket_recv_from(struct socket *socket, void *buf,
 /* socket_api function, see socket_api.h for details */
 uint8_t ns_sal_socket_is_connected(const struct socket *socket)
 {
-    // TODO: Not implemented
     (void) socket;
+    // TODO, implement for TCP sockets
     return 0;
 }
 
@@ -474,17 +478,15 @@ uint8_t ns_sal_socket_is_bound(const struct socket *socket)
 /* socket_api function, see socket_api.h for details */
 uint8_t ns_sal_socket_tx_is_busy(const struct socket *socket)
 {
-    // TODO: Not implemented
-    (void) socket;
-    return 0;
+    // TODO: Find another way of checking if TX is busy
+    return (socket->status & SOCKET_STATUS_TX_BUSY);
 }
 
 /* socket_api function, see socket_api.h for details */
 uint8_t ns_sal_socket_rx_is_busy(const struct socket *socket)
 {
-    // TODO: Not implemented
-    (void) socket;
-    return 0;
+    // TODO: Find another way of checking if RX is busy
+    return (socket->status & SOCKET_STATUS_RX_BUSY);
 }
 
 /*

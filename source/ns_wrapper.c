@@ -231,6 +231,11 @@ sock_data_s* ns_wrapper_socket_open(int8_t socket_type, int8_t identifier, void 
     return sock_data_ptr;
 }
 
+int8_t ns_wrapper_socket_bind(sock_data_s *sock_data_ptr, ns_address_t *address)
+{
+    return socket_bind(sock_data_ptr->socket_id, address);
+}
+
 int8_t ns_wrapper_socket_close(sock_data_s *sock_data_ptr)
 {
     tr_debug("ns_wrapper_socket_close() sock=%d", sock_data_ptr->socket_id);

@@ -29,10 +29,19 @@ int ns_udp_test_buffered_recv_from(socket_stack_t stack, socket_address_family_t
         const char* server, uint16_t port, run_func_t run_cb);
 
 /*
- * \brief Test maximum received datagram size.
+ * \brief Test socket binding.
+ * -Two sockets created,
+ * -->first one sends command to test server to send response to predefined port
+ * -->second one is bound to predefined port that receives response from test server.
  */
-int ns_udp_test_max_recv_from(socket_stack_t stack, socket_address_family_t af, socket_proto_family_t pf,
+int ns_socket_test_bind(socket_stack_t stack, socket_address_family_t af, socket_proto_family_t pf,
         const char* server, uint16_t port, run_func_t run_cb);
+
+/*
+ * \brief Test UDP socket binding API
+ * Test bind API with illegal parameters
+ */
+int ns_socket_test_bind_api(socket_stack_t stack, socket_address_family_t af, socket_proto_family_t pf);
 
 #endif /* __TEST_CASES_H__ */
 

@@ -36,9 +36,13 @@
 #define SOCKET_SENDBUF_ITERATIONS 8
 #endif
 
-#define TEST_REPLY5_DATA "#REPLY5:"
-#define TEST_REPLY5_DATA_LEN (sizeof(TEST_REPLY5_DATA)-1)
-#define TEST_REPLY5_DATA_REPLY_COUNT 5
+#define CMD_REPLY5_DATA "#REPLY5:"
+#define CMD_REPLY5_DATA_LEN (sizeof(CMD_REPLY5_DATA)-1)
+#define CMD_REPLY5_DATA_RESP_COUNT 5
+
+#define CMD_REPLY_DIFF_PORT "#REPLY_DIFF_PORT:"
+#define CMD_REPLY_DIFF_PORT_LEN (sizeof(CMD_REPLY_DIFF_PORT)-1)
+#define CMD_REPLY_DIFF_LOCAL_PORT 60000
 
 struct IPv4Entry{
     const char * test;
@@ -188,6 +192,7 @@ int socket_api_test_socket_str2addr(socket_stack_t stack, socket_address_family_
 
 volatile int timedout;
 static void onTimeout() {
+    TEST_PRINT("onTimeout()");
     timedout = 1;
 }
 
@@ -611,6 +616,7 @@ test_exit:
 
 static volatile bool incoming;
 static volatile bool server_event_done;
+static volatile bool server_rx_done;
 static volatile struct socket *server_socket;
 static volatile struct socket_event server_event;
 static void server_cb(void)
@@ -623,6 +629,10 @@ static void server_cb(void)
             server_event.event = event;
             server_event.i.a.newimpl = e->i.a.newimpl;
             e->i.a.reject = 0;
+            break;
+        case SOCKET_EVENT_RX_DONE:
+            server_rx_done = true;
+            TEST_PRINT("server_cb -  SOCKET_EVENT_RX_DONE\n\r");
             break;
         default:
             server_event_done = true;
@@ -793,7 +803,7 @@ int ns_udp_test_buffered_recv_from(socket_stack_t stack, socket_address_family_t
     client_socket = &sock;
     mbed::Timeout to;
     size_t rx_bytes = 0;
-    uint16_t data_len = TEST_REPLY5_DATA_LEN;
+    uint16_t data_len = CMD_REPLY5_DATA_LEN;
 
     // Create the socket
     TEST_CLEAR();
@@ -827,7 +837,7 @@ int ns_udp_test_buffered_recv_from(socket_stack_t stack, socket_address_family_t
         TEST_EXIT();
     }
 
-    strcpy(data, TEST_REPLY5_DATA);
+    strcpy(data, CMD_REPLY5_DATA);
 
     // Send the data
     client_tx_done = false;
@@ -868,14 +878,14 @@ int ns_udp_test_buffered_recv_from(socket_stack_t stack, socket_address_family_t
     timedout = 0;
     to.detach();
     /* adjust timeout as we wait for X responses */
-    to.attach(onTimeout, TEST_REPLY5_DATA_REPLY_COUNT * SOCKET_TEST_TIMEOUT);
+    to.attach(onTimeout, CMD_REPLY5_DATA_RESP_COUNT * SOCKET_TEST_TIMEOUT);
     memset(data, 0, SOCKET_SENDBUF_MAXSIZE);
 
     // Wait for the onReadable callback
     client_rx_resp_count = 0;
     do
     {
-        while (!timedout && client_rx_resp_count < TEST_REPLY5_DATA_REPLY_COUNT)
+        while (!timedout && client_rx_resp_count < CMD_REPLY5_DATA_RESP_COUNT)
         {
             run_cb();
         }
@@ -888,7 +898,7 @@ int ns_udp_test_buffered_recv_from(socket_stack_t stack, socket_address_family_t
         to.detach();
         to.attach(onTimeout, SOCKET_TEST_TIMEOUT);
         int iterations = 0;
-        data_len = TEST_REPLY5_DATA_LEN;
+        data_len = CMD_REPLY5_DATA_LEN;
         size_t len = data_len;
         // Receive data and port
         struct socket_addr rxaddr;
@@ -919,7 +929,7 @@ int ns_udp_test_buffered_recv_from(socket_stack_t stack, socket_address_family_t
 
             /* Check received data */
             //TEST_PRINT("%d. recv: %s, expect: %.*s\r\n", iterations, &data[rx_bytes], data_len, TEST_REPLY5_DATA);
-            int match = strncmp(&data[rx_bytes], TEST_REPLY5_DATA, data_len);
+            int match = strncmp(&data[rx_bytes], CMD_REPLY5_DATA, data_len);
             if (!TEST_EQ(match, 0))
             {
                 TEST_PRINT("Received data does not match! %s", &data[rx_bytes]);
@@ -927,7 +937,7 @@ int ns_udp_test_buffered_recv_from(socket_stack_t stack, socket_address_family_t
             rx_bytes += len;
             data_len--;
             len = data_len;
-        } while (0 == timedout && iterations < TEST_REPLY5_DATA_REPLY_COUNT);
+        } while (0 == timedout && iterations < CMD_REPLY5_DATA_RESP_COUNT);
 
         if (!TEST_EQ(timedout, 0))
         {
@@ -953,5 +963,240 @@ int ns_udp_test_buffered_recv_from(socket_stack_t stack, socket_address_family_t
 test_exit:
     TEST_PRINT(">>> KILL,ES\r\n");
     free(data);
+    TEST_RETURN();
+}
+
+int ns_socket_test_bind(socket_stack_t stack, socket_address_family_t af,
+        socket_proto_family_t pf, const char* server, uint16_t port,
+        run_func_t run_cb)
+{
+    struct socket sock_client;
+    struct socket sock_srv;
+    socket_error_t err;
+    const struct socket_api *api = socket_get_api(stack);
+    client_socket = &sock_client;
+    server_socket = &sock_srv;
+    mbed::Timeout to;
+    uint16_t data_len = CMD_REPLY_DIFF_PORT_LEN;
+
+    // Create the socket
+    TEST_CLEAR();
+    TEST_PRINT("\r\n%s af: %d, pf: %d, server: %s:%d\r\n",  __func__, (int ) af, (int ) pf, server, (int ) port);
+
+    if (!TEST_NEQ(api, NULL))
+    {
+        // Test cannot continue without API.
+        TEST_RETURN();
+    }
+    err = api->init();
+    if (!TEST_EQ(err, SOCKET_ERROR_NONE))
+    {
+        TEST_RETURN();
+    }
+
+    struct socket_addr addr;
+    // Resolve the host address
+    err = blocking_resolve(stack, af, server, &addr);
+    if (!TEST_EQ(err, SOCKET_ERROR_NONE))
+    {
+        TEST_RETURN();
+    }
+    // Tell the host launch a server
+    TEST_PRINT(">>> ES,%d\r\n", pf);
+    // Allocate a data buffer for tx/rx
+    void *data = malloc(SOCKET_SENDBUF_MAXSIZE);
+    strcpy((char*)data, CMD_REPLY_DIFF_PORT);
+
+
+    // Zero the socket implementation
+    sock_client.impl = NULL;
+    sock_srv.impl = NULL;
+    // Create client socket
+    err = api->create(&sock_client, af, pf, &client_cb);
+    if (!TEST_EQ(err, SOCKET_ERROR_NONE))
+    {
+        TEST_EXIT();
+    }
+    // Create server socket
+    err = api->create(&sock_srv, af, pf, &server_cb);
+    if (!TEST_EQ(err, SOCKET_ERROR_NONE))
+    {
+        TEST_EXIT();
+    }
+
+    // bind server socket to port
+    socket_addr address;
+    memset(&address.storage[0], 0, sizeof(address.storage));
+    address.type = SOCKET_STACK_NANOSTACK_IPV6;
+    err = api->bind(&sock_srv, &address, CMD_REPLY_DIFF_LOCAL_PORT);
+    if (!TEST_EQ(err, SOCKET_ERROR_NONE))
+    {
+        TEST_EXIT();
+    }
+
+    // Send the data
+    client_tx_done = false;
+    server_rx_done = false;
+    timedout = 0;
+    to.attach(onTimeout, SOCKET_TEST_TIMEOUT);
+
+    err = api->send_to(&sock_client, data, data_len, &addr, port);
+
+    if (!TEST_EQ(err, SOCKET_ERROR_NONE))
+    {
+        TEST_PRINT("Failed to send %u bytes\r\n", data_len);
+    }
+    else
+    {
+        size_t tx_bytes = 0;
+        do
+        {
+            // Wait for the onSent callback
+            while (!timedout && !client_tx_done)
+            {
+                run_cb();
+            }
+            if (!TEST_EQ(timedout, 0))
+            {
+                break;
+            }
+            if (!TEST_NEQ(client_tx_info.sentbytes, 0))
+            {
+                break;
+            }
+            tx_bytes += client_tx_info.sentbytes;
+            to.detach();
+            TEST_EQ(tx_bytes, data_len);
+            break;
+        } while (1);
+    }
+    timedout = 0;
+    to.attach(onTimeout, SOCKET_TEST_TIMEOUT);
+    memset(data, 0, SOCKET_SENDBUF_MAXSIZE);
+    // Wait for the onReadable callback
+    do
+    {
+        while (!timedout && !server_rx_done)
+        {
+            run_cb();
+        }
+
+        if (!TEST_EQ(timedout, 0))
+        {
+            break;
+        }
+
+        size_t len = SOCKET_SENDBUF_MAXSIZE;
+        // Receive data
+        struct socket_addr rxaddr;
+        uint16_t rxport = 0;
+        memcpy(&rxaddr, &addr, sizeof(rxaddr));
+        // Receive from...
+        err = api->recv_from(&sock_srv, data, &len, &rxaddr, &rxport);
+        TEST_EQ(rxaddr.type, stack);
+        // ON IPv6, replies are coming from temporary IP address, only 2 first part are valid
+        int rc = memcmp(&rxaddr.storage, &addr.storage, sizeof(rxaddr.storage) / 2);
+        if (!TEST_EQ(rc, 0))
+        {
+            TEST_PRINT("Spurious receive packet\r\n");
+        }
+
+        TEST_EQ(rxport, port);
+
+        if (!TEST_EQ(err, SOCKET_ERROR_NONE))
+        {
+            break;
+        }
+
+        if (!TEST_EQ(len, CMD_REPLY_DIFF_PORT_LEN))
+        {
+            TEST_PRINT("Expected %u, got %u\r\n", CMD_REPLY_DIFF_PORT_LEN, len);
+        }
+
+        int match = strcmp((char*)data, CMD_REPLY_DIFF_PORT);
+        if (!TEST_EQ(match, 0))
+        {
+            TEST_PRINT("Expected %s, got %s\r\n", CMD_REPLY_DIFF_PORT, (char*)data);
+        }
+        to.detach();
+        break;
+    } while (1);
+
+    // destroy the sockets
+    err = api->destroy(&sock_client);
+    TEST_EQ(err, SOCKET_ERROR_NONE);
+
+    err = api->destroy(&sock_srv);
+    TEST_EQ(err, SOCKET_ERROR_NONE);
+
+test_exit:
+    TEST_PRINT(">>> KILL,ES\r\n");
+    free(data);
+    TEST_RETURN();
+}
+
+int ns_socket_test_bind_api(socket_stack_t stack, socket_address_family_t af,
+        socket_proto_family_t pf)
+{
+    struct socket sock_client;
+    socket_error_t err;
+    const struct socket_api *api = socket_get_api(stack);
+    client_socket = &sock_client;
+
+    // Create the socket
+    TEST_CLEAR();
+    TEST_PRINT("\r\n%s af: %d, pf: %d\r\n",  __func__, (int ) af, (int ) pf);
+
+    if (!TEST_NEQ(api, NULL))
+    {
+        // Test cannot continue without API.
+        TEST_RETURN();
+    }
+    err = api->init();
+    if (!TEST_EQ(err, SOCKET_ERROR_NONE))
+    {
+        TEST_RETURN();
+    }
+
+    sock_client.impl = NULL;
+
+    // Create a socket
+    err = api->create(&sock_client, af, pf, &client_cb);
+    if (!TEST_EQ(err, SOCKET_ERROR_NONE))
+    {
+        TEST_EXIT();
+    }
+
+    // test binding API
+
+    // address not IN_ANY
+    socket_addr address;
+    address.storage[0] = 1;
+    address.type = SOCKET_STACK_NANOSTACK_IPV6;
+    err = api->bind(&sock_client, &address, CMD_REPLY_DIFF_LOCAL_PORT);
+    TEST_NEQ(err, SOCKET_ERROR_NONE);
+    memset(&address.storage[0], 0, 16);
+
+    // test port 0
+    address.type = SOCKET_STACK_NANOSTACK_IPV6;
+    err = api->bind(&sock_client, &address, 0);
+    TEST_NEQ(err, SOCKET_ERROR_NONE);
+
+    // test address NULL
+    err = api->bind(&sock_client, NULL, CMD_REPLY_DIFF_LOCAL_PORT);
+    TEST_NEQ(err, SOCKET_ERROR_NONE);
+
+    // test double binding
+    err = api->bind(&sock_client, &address, CMD_REPLY_DIFF_LOCAL_PORT);
+    TEST_EQ(err, SOCKET_ERROR_NONE);
+    err = api->bind(&sock_client, &address, CMD_REPLY_DIFF_LOCAL_PORT);
+    TEST_NEQ(err, SOCKET_ERROR_NONE);
+
+    // destroy the socket
+    err = api->destroy(&sock_client);
+    TEST_EQ(err, SOCKET_ERROR_NONE);
+
+test_exit:
+    TEST_PRINT(">>> KILL,ES\r\n");
     TEST_RETURN();
 }

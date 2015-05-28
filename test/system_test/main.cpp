@@ -73,6 +73,20 @@ int main()
                 TEST_SERVER, TEST_PORT, mesh_interface_run);
         tests_pass = tests_pass && rc;
 
+        rc = ns_socket_test_bind(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_DGRAM,
+                TEST_SERVER, TEST_PORT, mesh_interface_run);
+        tests_pass = tests_pass && rc;
+
+#if 0
+        rc = ns_socket_test_bind(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_STREAM,
+                TEST_SERVER, TEST_PORT, mesh_interface_run);
+        tests_pass = tests_pass && rc;
+#endif
+
+        rc = ns_socket_test_bind_api(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_DGRAM);
+        tests_pass = tests_pass && rc;
+
+        rc = ns_socket_test_bind_api(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_STREAM);
         tests_pass = tests_pass && rc;
 
     } while (0);
