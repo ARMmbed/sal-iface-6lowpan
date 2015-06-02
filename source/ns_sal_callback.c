@@ -6,10 +6,11 @@
  * NanoStack Socket Abstraction Layer (SAL) callback functions.
  * These callbacks will be called from NanoStack when some event occurs.
  */
-
+#include <string.h> // strlen
 #include "ns_address.h"
 #include <mbed-net-socket-abstract/socket_api.h>
 #include "mbed-6lowpan-adaptor/ns_sal_callback.h"
+#include "ip6string.h"  //nanostack stoip6
 #define HAVE_DEBUG 1
 #include "ns_trace.h"
 #define TRACE_GROUP  "ns_sal_cb"
@@ -25,6 +26,17 @@ void send_socket_callback(struct socket *socket, socket_event_t *e)
     socket->event = e;
     ((socket_api_handler_t) (socket->handler))();
     socket->event = NULL;
+}
+
+void ns_sal_callback_name_resolved(void* context, const char *address)
+{
+    socket_event_t e;
+    struct socket *socket = (struct socket*) context;
+    e.event = SOCKET_EVENT_DNS;
+    e.i.d.addr.type = SOCKET_STACK_NANOSTACK_IPV6;
+    e.i.d.domain = address;
+    stoip6(address, strlen(address), e.i.d.addr.storage);
+    send_socket_callback(socket, &e);
 }
 
 void ns_sal_callback_data_received(void* context, data_buff_t *data_buf)
@@ -93,6 +105,16 @@ void ns_sal_callback_connect(void* context)
     struct socket *socket = (struct socket*) context;
     e.event = SOCKET_EVENT_CONNECT;
     socket->status |= SOCKET_STATUS_CONNECTED;
+    e.sock = socket;
+    send_socket_callback(socket, &e);
+}
+
+void ns_sal_callback_disconnect(void* context)
+{
+    socket_event_t e;
+    struct socket *socket = (struct socket*) context;
+    e.event = SOCKET_EVENT_DISCONNECT;
+    socket->status &= ~SOCKET_STATUS_CONNECTED;
     e.sock = socket;
     send_socket_callback(socket, &e);
 }

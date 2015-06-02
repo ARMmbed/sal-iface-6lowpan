@@ -192,7 +192,7 @@ int socket_api_test_socket_str2addr(socket_stack_t stack, socket_address_family_
 
 volatile int timedout;
 static void onTimeout() {
-    TEST_PRINT("onTimeout()");
+    //TEST_PRINT("onTimeout()\r\n");
     timedout = 1;
 }
 
@@ -203,6 +203,7 @@ volatile int closed;
 volatile int connected;
 static void connect_close_handler(void)
 {
+    //TEST_PRINT("connect_close_handler %d\n\r", ConnectCloseSock->event->event);
     switch(ConnectCloseSock->event->event) {
         case SOCKET_EVENT_DISCONNECT:
             closed = 1;
@@ -215,7 +216,7 @@ static void connect_close_handler(void)
     }
 }
 
-int socket_api_test_connect_close(socket_stack_t stack, socket_address_family_t af, const char* server, uint16_t port)
+int socket_api_test_connect_close(socket_stack_t stack, socket_address_family_t af, socket_proto_family_t disable_family, const char* server, uint16_t port, run_func_t run_cb)
 {
     struct socket s;
     int pfi;
@@ -237,6 +238,11 @@ int socket_api_test_connect_close(socket_stack_t stack, socket_address_family_t 
     // Create a socket for each protocol family
     for (pfi = SOCKET_PROTO_UNINIT+1; pfi < SOCKET_PROTO_MAX; pfi++) {
         socket_proto_family_t pf = static_cast<socket_proto_family_t>(pfi);
+        if (disable_family == pfi)
+        {
+            TEST_PRINT("Skipped proto family %d\n\r", pfi);
+            continue;
+        }
         // Zero the implementation
         s.impl = NULL;
         err = api->create(&s, af, pf, &connect_close_handler);
@@ -264,12 +270,12 @@ int socket_api_test_connect_close(socket_stack_t stack, socket_address_family_t 
         switch (pf) {
         case SOCKET_DGRAM:
             while ((!api->is_connected(&s)) && (!timedout)) {
-                __WFI();
+                run_cb();
             }
             break;
         case SOCKET_STREAM:
             while (!connected && !timedout) {
-                __WFI();
+                run_cb();
             }
             break;
         default: break;
@@ -289,12 +295,12 @@ int socket_api_test_connect_close(socket_stack_t stack, socket_address_family_t 
         switch (pf) {
             case SOCKET_DGRAM:
                 while ((api->is_connected(&s)) && (!timedout)) {
-                    __WFI();
+                    run_cb();
                 }
                 break;
             case SOCKET_STREAM:
                 while (!closed && !timedout) {
-                    __WFI();
+                    run_cb();
                 }
                 break;
             default: break;
@@ -793,7 +799,7 @@ test_exit:
 
 /*
  * NanoStack UDP testing
- * */
+ */
 int ns_udp_test_buffered_recv_from(socket_stack_t stack, socket_address_family_t af, socket_proto_family_t pf,
         const char* server, uint16_t port, run_func_t run_cb)
 {
@@ -1135,6 +1141,249 @@ test_exit:
     TEST_RETURN();
 }
 
+int ns_socket_test_connect_failure(socket_stack_t stack, socket_address_family_t af, socket_proto_family_t pf,
+        const char* server, uint16_t port, run_func_t run_cb)
+{
+    struct socket s;
+    socket_error_t err;
+    const struct socket_api * api = socket_get_api(stack);
+    struct socket_addr addr;
+
+    ConnectCloseSock = &s;
+    TEST_CLEAR();
+    if (!TEST_NEQ(api, NULL)) {
+        // Test cannot continue without API.
+        TEST_RETURN();
+    }
+    err = api->init();
+    if (!TEST_EQ(err, SOCKET_ERROR_NONE)) {
+        TEST_RETURN();
+    }
+
+    // Zero the implementation
+    s.impl = NULL;
+    err = api->create(&s, af, pf, &connect_close_handler);
+    // catch expected failing cases
+    TEST_EQ(err, SOCKET_ERROR_NONE);
+    if (!TEST_NEQ(s.impl, NULL))
+    {
+        TEST_RETURN();
+    }
+
+    // connect to a remote host
+    err = api->str2addr(&s, &addr, server);
+    TEST_EQ(err, SOCKET_ERROR_NONE);
+
+    timedout = 0;
+    closed = 0;
+    mbed::Timeout to;
+    to.attach(onTimeout, 5*SOCKET_TEST_SERVER_TIMEOUT);
+    err = api->connect(&s, &addr, port);
+    TEST_EQ(err, SOCKET_ERROR_NONE);
+    if (err != SOCKET_ERROR_NONE)
+    {
+        printf("err = %d\r\n", err);
+    }
+
+    while (!closed && !timedout)
+    {
+        run_cb();
+    }
+    to.detach();
+    TEST_EQ(timedout, 0);
+
+    // Tell the host to kill the server
+    TEST_PRINT(">>> KILL ES\r\n");
+
+    // Destroy the socket
+    err = api->destroy(&s);
+    TEST_EQ(err, SOCKET_ERROR_NONE);
+
+    TEST_RETURN();
+}
+
+/* API tests */
+int ns_socket_test_recv_from_api(socket_stack_t stack, socket_address_family_t af, socket_proto_family_t pf)
+{
+    struct socket sock;
+    socket_error_t err;
+    const struct socket_api *api = socket_get_api(stack);
+    client_socket = &sock;
+    struct socket_addr rxaddr;
+    uint16_t rxport = 0;
+    size_t len = 10;
+
+    TEST_CLEAR();
+    TEST_PRINT("\r\n%s af: %d, pf: %d\r\n",__func__, (int) af, (int) pf);
+
+    if (!TEST_NEQ(api, NULL)) {
+        // Test cannot continue without API.
+        TEST_RETURN();
+    }
+    err = api->init();
+    if (!TEST_EQ(err, SOCKET_ERROR_NONE)) {
+        TEST_RETURN();
+    }
+
+    // Allocate a data buffer for tx/rx
+    char data[10];
+
+    // Zero the socket implementation
+    sock.impl = NULL;
+    // Create a socket
+    err = api->create(&sock, af, pf, &client_cb);
+    if (!TEST_EQ(err, SOCKET_ERROR_NONE)) {
+        TEST_EXIT();
+    }
+
+    // test data buffer NULL
+    err = api->recv_from(&sock, NULL, &len, &rxaddr, &rxport);
+    TEST_EQ(err, SOCKET_ERROR_NULL_PTR);
+
+    // test len is NULL
+    err = api->recv_from(&sock, &data, NULL, &rxaddr, &rxport);
+    TEST_EQ(err, SOCKET_ERROR_NULL_PTR);
+
+    // test len is 0
+    len = 0;
+    err = api->recv_from(&sock, &data, &len, &rxaddr, &rxport);
+    TEST_EQ(err, SOCKET_ERROR_SIZE);
+    len = 10;
+
+    // test rxaddr is NULL
+    err = api->recv_from(&sock, &data, &len, NULL, &rxport);
+    TEST_EQ(err, SOCKET_ERROR_NULL_PTR);
+
+    // test rxport is NULL
+    err = api->recv_from(&sock, &data, &len, &rxaddr, NULL);
+    TEST_EQ(err, SOCKET_ERROR_NULL_PTR);
+
+    // test reading empty socket would block
+    err = api->recv_from(&sock, &data, &len, &rxaddr, &rxport);
+    TEST_EQ(err, SOCKET_ERROR_WOULD_BLOCK);
+
+    // destroy the socket
+    err = api->destroy(&sock);
+    TEST_EQ(err, SOCKET_ERROR_NONE);
+
+    // test with destroyed socket
+    err = api->recv_from(&sock, &data, &len, &rxaddr, &rxport);
+    TEST_EQ(err, SOCKET_ERROR_NULL_PTR);
+
+test_exit:
+    TEST_RETURN();
+}
+
+int ns_socket_test_send_to_api(socket_stack_t stack, socket_address_family_t af, socket_proto_family_t pf)
+{
+    struct socket sock;
+    socket_error_t err;
+    const struct socket_api *api = socket_get_api(stack);
+    client_socket = &sock;
+    struct socket_addr addr;
+    uint16_t port = 10000;
+    size_t len = 10;
+
+    TEST_CLEAR();
+    TEST_PRINT("\r\n%s af: %d, pf: %d\r\n",__func__, (int) af, (int) pf);
+
+    if (!TEST_NEQ(api, NULL)) {
+        // Test cannot continue without API.
+        TEST_RETURN();
+    }
+    err = api->init();
+    if (!TEST_EQ(err, SOCKET_ERROR_NONE)) {
+        TEST_RETURN();
+    }
+
+    char data[10];
+
+    // Zero the socket implementation
+    sock.impl = NULL;
+    // Create a socket
+    err = api->create(&sock, af, pf, &client_cb);
+    if (!TEST_EQ(err, SOCKET_ERROR_NONE)) {
+        TEST_EXIT();
+    }
+
+    // test data buffer NULL
+    err = api->send_to(&sock, NULL, len, &addr, port);
+    TEST_EQ(err, SOCKET_ERROR_NULL_PTR);
+
+    // test data len is 0
+    err = api->send_to(&sock, &data, 0, &addr, port);
+    TEST_EQ(err, SOCKET_ERROR_SIZE);
+
+    // test addr is NULL
+    err = api->send_to(&sock, &data, len, NULL, port);
+    TEST_EQ(err, SOCKET_ERROR_NULL_PTR);
+
+    // destroy the socket
+    err = api->destroy(&sock);
+    TEST_EQ(err, SOCKET_ERROR_NONE);
+
+    // test with destroyed socket
+    err = api->send_to(&sock, &data, len, &addr, port);
+    TEST_EQ(err, SOCKET_ERROR_NULL_PTR);
+
+test_exit:
+    TEST_RETURN();
+}
+
+int ns_socket_test_connect_api(socket_stack_t stack, socket_address_family_t af, socket_proto_family_t pf)
+{
+    struct socket sock;
+    socket_error_t err;
+    const struct socket_api *api = socket_get_api(stack);
+    client_socket = &sock;
+    struct socket_addr addr;
+    uint16_t port = 10000;
+
+    TEST_CLEAR();
+    TEST_PRINT("\r\n%s af: %d, pf: %d\r\n",__func__, (int) af, (int) pf);
+
+    if (!TEST_NEQ(api, NULL)) {
+        // Test cannot continue without API.
+        TEST_RETURN();
+    }
+    err = api->init();
+    if (!TEST_EQ(err, SOCKET_ERROR_NONE)) {
+        TEST_RETURN();
+    }
+
+    // Zero the socket implementation
+    sock.impl = NULL;
+    // Create a socket
+    err = api->create(&sock, af, pf, &client_cb);
+    if (!TEST_EQ(err, SOCKET_ERROR_NONE)) {
+        TEST_EXIT();
+    }
+
+    memset(&addr, 0 , sizeof (socket_addr));
+    addr.type = SOCKET_STACK_NANOSTACK_IPV6;
+
+    // test NULL address
+    err = api->connect(&sock, NULL, port);
+    TEST_EQ(err, SOCKET_ERROR_NULL_PTR);
+
+    // test bad address type
+    addr.type = SOCKET_STACK_UNINIT;
+    err = api->connect(&sock, &addr, port);
+    TEST_EQ(err, SOCKET_ERROR_BAD_ADDRESS);
+    addr.type = SOCKET_STACK_NANOSTACK_IPV6;
+
+    // destroy the socket
+    err = api->destroy(&sock);
+    TEST_EQ(err, SOCKET_ERROR_NONE);
+
+    // test with destroyed socket
+    err = api->connect(&sock, &addr, port);
+    TEST_EQ(err, SOCKET_ERROR_NULL_PTR);
+
+test_exit:
+    TEST_RETURN();
+}
+
 int ns_socket_test_bind_api(socket_stack_t stack, socket_address_family_t af,
         socket_proto_family_t pf)
 {
@@ -1196,7 +1445,60 @@ int ns_socket_test_bind_api(socket_stack_t stack, socket_address_family_t af,
     err = api->destroy(&sock_client);
     TEST_EQ(err, SOCKET_ERROR_NONE);
 
+    // test with destroyed socket
+    err = api->bind(&sock_client, &address, CMD_REPLY_DIFF_LOCAL_PORT);
+    TEST_EQ(err, SOCKET_ERROR_NULL_PTR);
+
 test_exit:
-    TEST_PRINT(">>> KILL,ES\r\n");
     TEST_RETURN();
 }
+
+int ns_socket_test_resolve_api(socket_stack_t stack, socket_address_family_t af,
+        socket_proto_family_t pf)
+{
+    struct socket sock_client;
+    socket_error_t err;
+    const struct socket_api *api = socket_get_api(stack);
+    client_socket = &sock_client;
+    const char address[] = "test address";
+
+    // Create the socket
+    TEST_CLEAR();
+    TEST_PRINT("\r\n%s af: %d, pf: %d\r\n",  __func__, (int ) af, (int ) pf);
+
+    if (!TEST_NEQ(api, NULL))
+    {
+        // Test cannot continue without API.
+        TEST_RETURN();
+    }
+    err = api->init();
+    if (!TEST_EQ(err, SOCKET_ERROR_NONE))
+    {
+        TEST_RETURN();
+    }
+
+    sock_client.impl = NULL;
+
+    // Create a socket
+    err = api->create(&sock_client, af, pf, &client_cb);
+    if (!TEST_EQ(err, SOCKET_ERROR_NONE))
+    {
+        TEST_EXIT();
+    }
+
+    // test resolve API
+    err = api->resolve(&sock_client, NULL);
+    TEST_NEQ(err, SOCKET_ERROR_NONE);
+
+    // destroy the socket
+    err = api->destroy(&sock_client);
+    TEST_EQ(err, SOCKET_ERROR_NONE);
+
+    // test with destroyed socket
+    err = api->resolve(&sock_client, address);
+    TEST_EQ(err, SOCKET_ERROR_NULL_PTR);
+
+test_exit:
+    TEST_RETURN();
+}
+

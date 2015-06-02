@@ -121,6 +121,7 @@ void ns_wrapper_socket_callback(void *cb)
     break;
     case SOCKET_CONNECT_CLOSED:
         tr_debug("SOCKET_CONNECT_CLOSED");
+        ns_sal_callback_disconnect(socket_context_tbl[sock_cb->socket_id].context);
     break;
     case SOCKET_CONNECT_FAIL_CLOSED:
         tr_debug("SOCKET_CONNECT_FAIL_CLOSED");
@@ -246,6 +247,7 @@ int8_t ns_wrapper_socket_close(sock_data_s *sock_data_ptr)
 
 int8_t ns_wrapper_socket_connect(sock_data_s *sock_data_ptr, ns_address_t *address)
 {
+    tr_debug("ns_wrapper_socket_connect() sock=%d", sock_data_ptr->socket_id);
     return socket_connect(sock_data_ptr->socket_id, address, 0);
 }
 

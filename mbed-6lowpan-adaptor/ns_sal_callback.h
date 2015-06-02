@@ -15,6 +15,14 @@ typedef struct _data_buff_t
     uint8_t payload[];          /*<! Trailing buffer data */
 } data_buff_t;
 
+
+/*
+ * \brief address resolved callback
+ * \param context context that receives name resolving result
+ * \param address to resolve
+ */
+void ns_sal_callback_name_resolved(void* context, const char *address);
+
 /*
  * \brief Data received callback
  * \param context context that receives data
@@ -40,5 +48,11 @@ extern void ns_sal_callback_tx_error(void* context);
  * \param context connected
  */
 extern void ns_sal_callback_connect(void* context);
+
+/*
+ * \brief Socket disconnected callback
+ * \param context disconnected
+ */
+extern void ns_sal_callback_disconnect(void* context);
 
 #endif /* _NS_SAL_CALLBACK_H_ */

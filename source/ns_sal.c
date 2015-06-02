@@ -162,6 +162,8 @@ static socket_error_t ns_sal_socket_destroy(struct socket *sock)
         FREE(tmp_buf);
     }
 
+    sock->rxBufChain = NULL;
+
     if (NULL != sock->impl)
     {
         int8_t status = ns_wrapper_socket_free(sock->impl);
@@ -180,7 +182,7 @@ static socket_error_t ns_sal_socket_close(struct socket *sock)
 {
     socket_error_t error = SOCKET_ERROR_UNKNOWN;
     int8_t return_value;
-    if (NULL == sock)
+    if (NULL == sock || NULL == sock->impl)
     {
         return SOCKET_ERROR_NULL_PTR;
     }
@@ -213,7 +215,7 @@ socket_error_t ns_sal_socket_connect(struct socket *sock,
         const struct socket_addr *address, const uint16_t port)
 {
     socket_error_t error_code;
-    if (NULL == sock || NULL == address)
+    if (NULL == sock || NULL == address || NULL == sock->impl)
     {
         return SOCKET_ERROR_NULL_PTR;
 
@@ -225,18 +227,21 @@ socket_error_t ns_sal_socket_connect(struct socket *sock,
 
     ns_address_t ns_address;
     convert_mbed_addr_to_ns(&ns_address, address, port);
-    int8_t retval = ns_wrapper_socket_connect(sock->impl, &ns_address);
-    switch (retval)
+    switch (ns_wrapper_socket_connect(sock->impl, &ns_address))
     {
     case 0:
         error_code = SOCKET_ERROR_NONE;
     break;
-        // TODO: Find correct mappings for these errors
     case -1:
-        case -2:
-        case -3:
-        case -4:
-        default:
+        // can't connect UDP socket or illegal socket ID
+        error_code = SOCKET_ERROR_BAD_FAMILY;
+    break;
+    case -4:
+        error_code = SOCKET_ERROR_BAD_ALLOC;
+    break;
+    default:
+        /* case -2: tcp connection error */
+        /* case -3:  socket is already in listen state */
         error_code = SOCKET_ERROR_UNKNOWN;
     break;
     }
@@ -246,7 +251,7 @@ socket_error_t ns_sal_socket_connect(struct socket *sock,
 
 void periodic_task(void)
 {
-    /* this will be called periodically when used, empty at the moment */
+    /* this function will be called periodically when used, empty at the moment */
 }
 /* socket_api function, see socket_api.h for details */
 socket_api_handler_t ns_sal_socket_periodic_task(
@@ -275,15 +280,12 @@ uint32_t ns_sal_socket_periodic_interval(const struct socket * socket)
 socket_error_t ns_sal_socket_resolve(struct socket *socket,
         const char *address)
 {
+    if (NULL == socket || NULL == socket->impl || NULL == address)
+    {
+        return SOCKET_ERROR_NULL_PTR;
+    }
     /* TODO: Implement DNS resolving */
-    socket_event_t e;
-    e.event = SOCKET_EVENT_DNS;
-    e.i.d.addr.type = SOCKET_STACK_NANOSTACK_IPV6;
-    e.i.d.domain = address;
-    stoip6(address, strlen(address), e.i.d.addr.storage);
-    socket->event = &e;
-    ((socket_api_handler_t) (socket->handler))();
-    socket->event = NULL;
+    ns_sal_callback_name_resolved(socket, address);
     return SOCKET_ERROR_NONE;
 }
 
@@ -293,7 +295,7 @@ socket_error_t ns_sal_str2addr(const struct socket *sock,
 {
     socket_error_t err = SOCKET_ERROR_NONE;
     tr_debug("ns_sal_str2addr() %s", address);
-    if (NULL == addr || NULL == address)
+    if (NULL == sock || NULL == addr || NULL == address)
     {
         err = SOCKET_ERROR_NULL_PTR;
     }
@@ -316,6 +318,12 @@ socket_error_t ns_sal_socket_bind(struct socket *socket,
         const struct socket_addr *address, const uint16_t port)
 {
     ns_address_t ns_address;
+
+    if (NULL == socket || NULL == socket->impl || NULL == address)
+    {
+        return SOCKET_ERROR_NULL_PTR;
+    }
+
     convert_mbed_addr_to_ns(&ns_address, address, port);
 
     if (0 == ns_wrapper_socket_bind(socket->impl, &ns_address))
@@ -392,9 +400,14 @@ socket_error_t ns_sal_socket_send_to(struct socket *socket, const void * buf,
     int8_t send_to_status;
 
     tr_debug("ns_sal_socket_send_to()");
-    if (NULL == socket || NULL == buf || 0 >= len)
+    if (NULL == socket || NULL == socket->impl || NULL == buf || NULL == addr)
     {
         return SOCKET_ERROR_NULL_PTR;
+    }
+
+    if (len <= 0)
+    {
+        return SOCKET_ERROR_SIZE;
     }
 
     switch (socket->family)
@@ -444,14 +457,16 @@ socket_error_t ns_sal_socket_recv(struct socket *socket, void * buf,
 socket_error_t ns_sal_socket_recv_from(struct socket *socket, void *buf,
         size_t *len, struct socket_addr *addr, uint16_t *port)
 {
-    socket_error_t err = ns_sal_recv_validate(socket, buf, len);
-    if (err != SOCKET_ERROR_NONE) {
-        return err;
-    }
-
+    /* socket and socket->impl will be validated in ns_sal_recv_validate */
     if(NULL == addr || NULL == port)
     {
         return SOCKET_ERROR_NULL_PTR;
+    }
+
+    socket_error_t err = ns_sal_recv_validate(socket, buf, len);
+    if (err != SOCKET_ERROR_NONE)
+    {
+        return err;
     }
 
     ns_sal_copy_datagrams(socket, buf, len, addr, port);
@@ -462,8 +477,17 @@ socket_error_t ns_sal_socket_recv_from(struct socket *socket, void *buf,
 /* socket_api function, see socket_api.h for details */
 uint8_t ns_sal_socket_is_connected(const struct socket *socket)
 {
-    (void) socket;
-    // TODO, implement for TCP sockets
+    if (SOCKET_DGRAM == socket->family)
+    {
+        // UDP sockets can't be connected in NanoStack */
+        return 0;
+    }
+    else if (SOCKET_STREAM == socket->family)
+    {
+        // TODO, implement for TCP sockets
+        return 0;
+    }
+
     return 0;
 }
 
