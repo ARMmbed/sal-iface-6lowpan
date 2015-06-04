@@ -46,6 +46,14 @@ int ns_socket_test_connect_failure(socket_stack_t stack, socket_address_family_t
         const char* server, uint16_t port, run_func_t run_cb);
 
 /*
+ * \brief Test maximum number of sockets.
+ * -Create sockets until socket creation fails.
+ * -Send_to and recv_from for each socket
+ */
+int ns_socket_test_max_num_of_sockets(socket_stack_t stack, socket_address_family_t af, socket_proto_family_t pf,
+        const char* server, uint16_t port, run_func_t run_cb, uint8_t max_num_of_sockets);
+
+/*
  * \brief Test recv_from API with error values.
  */
 int ns_socket_test_recv_from_api(socket_stack_t stack, socket_address_family_t af, socket_proto_family_t pf);

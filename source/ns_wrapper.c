@@ -23,7 +23,7 @@
 #define TRACE_GROUP  "ns_wrapper"
 #include "mbed-6lowpan-adaptor/ns_wrapper.h"
 
-#define SOCKETS_MAX 16  // TODO, fix double definition
+#define NS_WRAPPER_SOCKETS_MAX  16  //same as NanoStack SOCKET_MAX
 #define MALLOC  ns_dyn_mem_alloc
 #define FREE    ns_dyn_mem_free
 
@@ -36,7 +36,7 @@ typedef struct _socket_context_map_t {
     void* context;
 } socket_context_map_t;
 
-static socket_context_map_t socket_context_tbl[SOCKETS_MAX] = {{0}};
+static socket_context_map_t socket_context_tbl[NS_WRAPPER_SOCKETS_MAX] = {{0}};
 
 /* Prototypes */
 
@@ -222,11 +222,21 @@ sock_data_s* ns_wrapper_socket_open(int8_t socket_type, int8_t identifier, void 
     sock_data_s *sock_data_ptr = (sock_data_s *) MALLOC(sizeof(sock_data_s));
     if (NULL != sock_data_ptr)
     {
-        sock_data_ptr->security_session_id = 0;
         sock_data_ptr->socket_id = socket_open(protocol, identifier,
                 ns_wrapper_socket_callback);
-        // save context to table so that callbacks can be made to right socket
-        socket_context_tbl[sock_data_ptr->socket_id].context = context;
+        if ((sock_data_ptr->socket_id >= 0) &&
+                (sock_data_ptr->socket_id < NS_WRAPPER_SOCKETS_MAX))
+        {
+            sock_data_ptr->security_session_id = 0;
+            // save context to table so that callbacks can be made to right socket
+            socket_context_tbl[sock_data_ptr->socket_id].context = context;
+        }
+        else
+        {
+            /* socket opening failed, free reserved data */
+            FREE(sock_data_ptr);
+            sock_data_ptr = NULL;
+        }
     }
 
     return sock_data_ptr;

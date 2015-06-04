@@ -21,6 +21,7 @@
 #define TEST_PORT           50001
 #define TEST_NO_SRV_PORT    40000   // No server on this port
 #define CONNECT_PORT        50000
+#define MAX_NUM_OF_SOCKETS  16  // NanoStack supports max 16 sockets, 2 are already reserved by stack..
 
 #define NS_MAX_UDP_PACKET_SIZE 2047
 
@@ -98,7 +99,13 @@ int main()
         tests_pass = tests_pass && rc;
 #endif
 
-        /* Test APIs with illegal values */
+        rc = ns_socket_test_max_num_of_sockets(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_DGRAM,
+                TEST_SERVER, TEST_PORT, mesh_interface_run, MAX_NUM_OF_SOCKETS);
+        tests_pass = tests_pass && rc;
+
+        /*
+         * Test Socket API's with illegal values
+         */
         rc = ns_socket_test_recv_from_api(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_DGRAM);
         tests_pass = tests_pass && rc;
 

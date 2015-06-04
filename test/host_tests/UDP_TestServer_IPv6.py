@@ -5,6 +5,7 @@
 import socket
 import time
 
+cmd_reply_echo = "#ECHO:"
 cmd_reply5 = "#REPLY5:"
 cmd_reply_port = "#REPLY_DIFF_PORT:"
 
@@ -30,6 +31,11 @@ def reply2port(sock, address, data):
     sock.sendto(data, (address[0], REPLY_PORT))
     print '->reply2port:', time.ctime()
 
+def replyEcho(sock, address, data):
+    print '->replyEcho', data
+    sock.sendto(data, address)
+    print '->replyEcho:', time.ctime()
+
 def runConnectClose():
     print 'IPv6 UDP Test Server'
     Sv4 = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
@@ -44,6 +50,8 @@ def runConnectClose():
                 replyFiveTimes(Sv4, address, data)
             elif data.startswith(cmd_reply_port):
                 reply2port(Sv4, address, data)
+            elif data.startswith(cmd_reply_echo):
+                replyEcho(Sv4, address, data)
             else:
                 Sv4.sendto(data, address)
                 print '->replied:', time.ctime()

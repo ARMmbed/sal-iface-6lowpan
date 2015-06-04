@@ -16,6 +16,14 @@
 #include <mbed/mbed.h>
 #include "test_cases.h"
 
+//#define TEST_DEBUG
+
+#ifndef TEST_DEBUG
+#define TEST_DBG(...)
+#else
+#define TEST_DBG(...) printf(__VA_ARGS__)
+#endif
+
 #ifndef SOCKET_TEST_TIMEOUT
 #define SOCKET_TEST_TIMEOUT 1.0f
 #endif
@@ -39,6 +47,9 @@
 #define CMD_REPLY5_DATA "#REPLY5:"
 #define CMD_REPLY5_DATA_LEN (sizeof(CMD_REPLY5_DATA)-1)
 #define CMD_REPLY5_DATA_RESP_COUNT 5
+
+#define CMD_REPLY_ECHO "#ECHO:"
+#define CMD_REPLY_ECHO_LEN (sizeof(CMD_REPLY_ECHO)-1)
 
 #define CMD_REPLY_DIFF_PORT "#REPLY_DIFF_PORT:"
 #define CMD_REPLY_DIFF_PORT_LEN (sizeof(CMD_REPLY_DIFF_PORT)-1)
@@ -192,7 +203,7 @@ int socket_api_test_socket_str2addr(socket_stack_t stack, socket_address_family_
 
 volatile int timedout;
 static void onTimeout() {
-    //TEST_PRINT("onTimeout()\r\n");
+    TEST_DBG("onTimeout()\r\n");
     timedout = 1;
 }
 
@@ -203,7 +214,7 @@ volatile int closed;
 volatile int connected;
 static void connect_close_handler(void)
 {
-    //TEST_PRINT("connect_close_handler %d\n\r", ConnectCloseSock->event->event);
+    TEST_DBG("connect_close_handler %d\r\n", ConnectCloseSock->event->event);
     switch(ConnectCloseSock->event->event) {
         case SOCKET_EVENT_DISCONNECT:
             closed = 1;
@@ -240,7 +251,7 @@ int socket_api_test_connect_close(socket_stack_t stack, socket_address_family_t 
         socket_proto_family_t pf = static_cast<socket_proto_family_t>(pfi);
         if (disable_family == pfi)
         {
-            TEST_PRINT("Skipped proto family %d\n\r", pfi);
+            TEST_PRINT("Skipped proto family %d\r\n", pfi);
             continue;
         }
         // Zero the implementation
@@ -358,6 +369,7 @@ socket_error_t blocking_resolve(const socket_stack_t stack, const socket_address
     blocking_resolve_done = false;
     socket_error_t err = api->resolve(&s, server);
     if(!TEST_EQ(err, SOCKET_ERROR_NONE)) {
+        TEST_DBG("Resolve failed, err %d\r\n", err);
         return err;
     }
     while (!blocking_resolve_done) {
@@ -401,7 +413,7 @@ static void client_cb() {
         case SOCKET_EVENT_RX_DONE:
             client_rx_done = true;
             client_rx_resp_count++;
-            //TEST_PRINT("SOCKET_EVENT_RX_DONE %d\n\r", client_rx_resp_count);
+            TEST_DBG("SOCKET_EVENT_RX_DONE %d\r\n", client_rx_resp_count);
             break;
         case SOCKET_EVENT_TX_DONE:
             client_tx_done = true;
@@ -638,7 +650,7 @@ static void server_cb(void)
             break;
         case SOCKET_EVENT_RX_DONE:
             server_rx_done = true;
-            TEST_PRINT("server_cb -  SOCKET_EVENT_RX_DONE\n\r");
+            TEST_DBG("server_cb -  SOCKET_EVENT_RX_DONE\r\n");
             break;
         default:
             server_event_done = true;
@@ -1199,6 +1211,184 @@ int ns_socket_test_connect_failure(socket_stack_t stack, socket_address_family_t
     err = api->destroy(&s);
     TEST_EQ(err, SOCKET_ERROR_NONE);
 
+    TEST_RETURN();
+}
+
+int test_send_to(const struct socket_api *api, run_func_t run_cb, struct socket *socket, const void * buf, const size_t len, const struct socket_addr *addr, const uint16_t port)
+{
+    socket_error_t err;
+
+    client_tx_done = false;
+    client_rx_done = false;
+    client_socket = socket;
+    timedout = 0;
+
+    mbed::Timeout to;
+    to.detach();
+    to.attach(onTimeout, SOCKET_TEST_TIMEOUT);
+
+    err = api->send_to(socket, buf, len, addr, port);
+
+    if (!TEST_EQ(err, SOCKET_ERROR_NONE))
+    {
+        TEST_PRINT("Failed to send %u bytes to socket\r\n", len);
+        return -1;
+    }
+    else
+    {
+        do
+        {
+            // Wait for the onSent callback
+            while (!timedout && !client_tx_done)
+            {
+                run_cb();
+            }
+            to.detach();
+            if (!TEST_EQ(timedout, 0))
+            {
+                return -1;
+            }
+            if (!TEST_EQ(client_tx_info.sentbytes, len))
+            {
+                return -1;
+            }
+            break;
+        } while (1);
+    }
+    return 0;
+}
+
+int test_recv_from(const struct socket_api *api, run_func_t run_cb,
+        struct socket *socket, void * buf, size_t *len, struct socket_addr *addr, uint16_t *port)
+{
+    socket_error_t err;
+
+    client_rx_done = false;
+    client_socket = socket;
+    timedout = 0;
+
+    mbed::Timeout to;
+    to.detach();
+    to.attach(onTimeout, SOCKET_TEST_TIMEOUT);
+
+    while (!timedout && !client_rx_done)
+    {
+        run_cb();
+    }
+    to.detach();
+    if (!TEST_EQ(timedout, 0))
+    {
+        return -1;
+    }
+    // Receive from...
+    err = api->recv_from(socket, buf, len, addr, port);
+    if (!TEST_EQ(err, SOCKET_ERROR_NONE))
+    {
+        return -1;
+    }
+    return 0;
+}
+
+int ns_socket_test_max_num_of_sockets(socket_stack_t stack, socket_address_family_t af, socket_proto_family_t pf,
+        const char* server, uint16_t port, run_func_t run_cb, uint8_t max_num_of_sockets)
+{
+    socket_error_t err;
+    const struct socket_api *api = socket_get_api(stack);
+    mbed::Timeout to;
+    int socket_nbr;
+    int i;
+
+    struct socket *sock_tbl[max_num_of_sockets+1];
+
+    // Create sockets
+    TEST_CLEAR();
+    TEST_PRINT("\r\n%s af: %d, pf: %d, server: %s:%d\r\n",__func__, (int) af, (int) pf, server, (int) port);
+
+    if (!TEST_NEQ(api, NULL)) {
+        // Test cannot continue without API.
+        TEST_RETURN();
+    }
+    err = api->init();
+    if (!TEST_EQ(err, SOCKET_ERROR_NONE)) {
+        TEST_RETURN();
+    }
+
+    struct socket_addr addr;
+    // Resolve the host address
+    err = blocking_resolve(stack, af, server, &addr);
+    if (!TEST_EQ(err, SOCKET_ERROR_NONE)) {
+        TEST_RETURN();
+    }
+
+    // Tell the host launch a server
+    TEST_PRINT(">>> ES,%d\r\n", pf);
+
+    // create sockets until creation fails
+    for (socket_nbr = 0; socket_nbr < max_num_of_sockets; socket_nbr++)
+    {
+        sock_tbl[socket_nbr] = (struct socket*)malloc(sizeof (struct socket));
+        // Zero the socket implementation
+        sock_tbl[socket_nbr]->impl = NULL;
+        // Create a socket
+        err = api->create(sock_tbl[socket_nbr], af, pf, &client_cb);
+        if (err != SOCKET_ERROR_NONE)
+        {
+            TEST_PRINT("Created %d sockets successfully! (last one failed)\r\n", socket_nbr);
+            break;
+        }
+    }
+
+    if (!TEST_EQ(err, SOCKET_ERROR_BAD_ALLOC))
+    {
+        TEST_PRINT("Socket max count not reached!\r\n");
+    }
+
+    // send_to and recv_from for each socket
+    uint16_t data_len = CMD_REPLY_ECHO_LEN + 4; // sprintf adds 4 characters to buffer
+    // Allocate a data buffer for tx/rx
+    char *txdata = (char*)malloc(SOCKET_SENDBUF_BLOCKSIZE);
+    char *rxdata = (char*)malloc(SOCKET_SENDBUF_BLOCKSIZE);
+
+    for (i = 0; i < socket_nbr; i++)
+    {
+        sprintf(txdata, "%s %03d", CMD_REPLY_ECHO, i);
+        if (test_send_to(api, run_cb, sock_tbl[i], txdata, data_len,
+                &addr, port) != 0)
+        {
+            TEST_PRINT("Failed to send data to socket %d\r\n", i);
+            break;
+        }
+
+        uint16_t rxport;
+        size_t rxlen = SOCKET_SENDBUF_BLOCKSIZE;
+
+        int result = test_recv_from(api, run_cb, sock_tbl[i], rxdata, &rxlen, &addr, &rxport);
+        if (result != 0)
+        {
+            TEST_PRINT("Failed to recv data from socket %d\r\n", i);
+            break;
+        }
+        else
+        {
+            // validate data, length and port
+            int res = memcmp(txdata, rxdata, data_len);
+            TEST_EQ(res, 0);
+            TEST_EQ(rxlen, data_len);
+            TEST_EQ(port, rxport);
+        }
+    } // for all sockets
+
+    // destroy all sockets
+    for (i = 0; i < socket_nbr; i++)
+    {
+        err = api->destroy(sock_tbl[i]);
+        free(sock_tbl[i]);
+        TEST_EQ(err, SOCKET_ERROR_NONE);
+    }
+
+    TEST_PRINT(">>> KILL,ES\r\n");
+    free(txdata);
+    free(rxdata);
     TEST_RETURN();
 }
 
