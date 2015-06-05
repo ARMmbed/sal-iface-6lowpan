@@ -4,7 +4,7 @@
   "description": "Socket and configuration API for mesh stack.",
   "keywords": [],
   "author": "Arto Kinnunen <arto.kinnunen@arm.com>",
-  "homepage": "http://git.oulu.arm.com:8080/gitweb?p=mped-6lowpan-adaptor.git;a=summary",
+  "homepage": "http://git.oulu.arm.com:8080/gitweb?p=mbed-6lowpan-adaptor.git;a=summary",
   "licenses": [
     {
       "url": "https://spdx.org/licenses/Apache-2.0",
