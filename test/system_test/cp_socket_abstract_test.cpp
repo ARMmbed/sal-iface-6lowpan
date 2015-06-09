@@ -1334,6 +1334,7 @@ int ns_socket_test_max_num_of_sockets(socket_stack_t stack, socket_address_famil
         if (err != SOCKET_ERROR_NONE)
         {
             TEST_PRINT("Created %d sockets successfully! (last one failed)\r\n", socket_nbr);
+            free(sock_tbl[socket_nbr]);
             break;
         }
     }
@@ -1383,6 +1384,137 @@ int ns_socket_test_max_num_of_sockets(socket_stack_t stack, socket_address_famil
     {
         err = api->destroy(sock_tbl[i]);
         free(sock_tbl[i]);
+        TEST_EQ(err, SOCKET_ERROR_NONE);
+    }
+
+    TEST_PRINT(">>> KILL,ES\r\n");
+    free(txdata);
+    free(rxdata);
+    TEST_RETURN();
+}
+
+static volatile int reentrant_callback_count;
+static void rentrant_socket_cb() {
+    // re-entrant callback
+    TEST_DBG("rentrant_socket_cb()\r\n");
+    reentrant_callback_count++;
+}
+
+int ns_socket_test_udp_traffic(socket_stack_t stack, socket_address_family_t af, socket_proto_family_t pf,
+        const char* server, uint16_t port, run_func_t run_cb, uint16_t max_loops, uint8_t max_num_of_sockets)
+{
+    socket_error_t err;
+    const struct socket_api *api = socket_get_api(stack);
+    mbed::Timeout to;
+    int sock_index;
+    int socket_count = 0;
+    struct socket *sock_tbl[max_num_of_sockets+1];
+
+    // Create sockets
+    TEST_CLEAR();
+    TEST_PRINT("\r\n%s af: %d, pf: %d, server: %s:%d\r\n",__func__, (int) af, (int) pf, server, (int) port);
+
+    if (!TEST_NEQ(api, NULL)) {
+        // Test cannot continue without API.
+        TEST_RETURN();
+    }
+    err = api->init();
+    if (!TEST_EQ(err, SOCKET_ERROR_NONE)) {
+        TEST_RETURN();
+    }
+
+    // Allocate a data buffer for tx/rx
+    char *txdata = (char*)malloc(SOCKET_SENDBUF_BLOCKSIZE);
+    char *rxdata = (char*)malloc(SOCKET_SENDBUF_BLOCKSIZE);
+    int loop_count;
+
+    // Tell the host launch a server
+    TEST_PRINT(">>> ES,%d\r\n", pf);
+
+    // create sockets until creation fails
+    for (sock_index = 0; sock_index < max_num_of_sockets; sock_index++)
+    {
+        sock_tbl[sock_index] = (struct socket*)malloc(sizeof (struct socket));
+        // Zero the socket implementation
+        sock_tbl[sock_index]->impl = NULL;
+        // Create a socket
+        err = api->create(sock_tbl[sock_index], af, pf, &rentrant_socket_cb);
+        if (err != SOCKET_ERROR_NONE)
+        {
+            free(sock_tbl[sock_index]);
+            break;
+        }
+    }
+    TEST_PRINT("%d sockets created OK, do send_to() and recv_from() for each socket...\r\n", sock_index);
+    socket_count = sock_index;
+    struct socket_addr addr;
+    err = api->str2addr(sock_tbl[0], &addr, server);
+    if (!TEST_EQ(err, SOCKET_ERROR_NONE)) {
+        TEST_RETURN();
+    }
+
+    // send_to and recv_from for each socket
+    uint16_t data_len = CMD_REPLY_ECHO_LEN + 15; // sprintf adds 15 chars to buf
+
+    for (loop_count = 0; loop_count < max_loops; loop_count++)
+    {
+        // send data to all sockets
+        for (sock_index = 0; sock_index < socket_count; sock_index++)
+        {
+            sprintf(txdata, "%s %03d - %03d/%03d", CMD_REPLY_ECHO, sock_index, loop_count, max_loops);
+            err = api->send_to(sock_tbl[sock_index], txdata, data_len, &addr, port);
+            timedout = 0;
+            reentrant_callback_count = 0;
+            to.attach(onTimeout, SOCKET_TEST_SERVER_TIMEOUT);
+            int cb_count = reentrant_callback_count + 2;    // wait for TX and RX
+            while (cb_count != reentrant_callback_count && !timedout)
+            {
+                run_cb();
+            }
+            to.detach();
+            if (!TEST_EQ(timedout, 0))
+            {
+                TEST_PRINT("send_to() failed loop %d\r\n", loop_count);
+                break;
+            }
+        } // for all sockets
+
+        uint16_t rxport;
+        size_t rxlen = SOCKET_SENDBUF_BLOCKSIZE;
+
+        for (sock_index = 0; sock_index < socket_count; sock_index++)
+        {
+            timedout = 0;
+            to.attach(onTimeout, 2*SOCKET_TEST_SERVER_TIMEOUT);
+            err = api->recv_from(sock_tbl[sock_index], rxdata, &rxlen, &addr, &rxport);
+            while (err != SOCKET_ERROR_NONE && !timedout)
+            {
+                run_cb();
+                err = api->recv_from(sock_tbl[sock_index], rxdata, &rxlen, &addr, &rxport);
+            }
+            to.detach();
+            if (!TEST_EQ(timedout, 0))
+            {
+                TEST_PRINT("recv_from() timeout at loop %d\r\n", loop_count);
+                break;
+            }
+            // validate data, length and port
+            sprintf(txdata, "%s %03d - %03d/%03d", CMD_REPLY_ECHO, sock_index, loop_count, max_loops);
+            int res = memcmp(txdata, rxdata, data_len);
+            if (!TEST_EQ(res, 0))
+            {
+                TEST_PRINT("Recv: %s\r\nSend: %s\r\n", rxdata, txdata);
+            }
+            TEST_EQ(rxlen, data_len);
+            TEST_EQ(port, rxport);
+        } // for all sockets
+    }
+
+    // destroy all sockets
+    for (sock_index = 0; sock_index < socket_count; sock_index++)
+    {
+        err = api->destroy(sock_tbl[sock_index]);
+        free(sock_tbl[sock_index]);
         TEST_EQ(err, SOCKET_ERROR_NONE);
     }
 

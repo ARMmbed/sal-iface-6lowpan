@@ -9,11 +9,10 @@
 #include "mbed-6lowpan-adaptor/mesh_interface.h"
 #include "test_cases.h"
 #include "mbed/test_env.h"
-
-// For tracing we need to define flag, have include and define group
 #define HAVE_DEBUG 1
 #include "ns_trace.h"
-#define TRACE_GROUP  "main"
+
+#define TRACE_GROUP  "main"     // for traces
 
 // main IPv6 address
 // Note! Replies are coming from temporary address unless feature disabled from server side.
@@ -21,7 +20,9 @@
 #define TEST_PORT           50001
 #define TEST_NO_SRV_PORT    40000   // No server on this port
 #define CONNECT_PORT        50000
-#define MAX_NUM_OF_SOCKETS  16  // NanoStack supports max 16 sockets, 2 are already reserved by stack..
+#define MAX_NUM_OF_SOCKETS  16      // NanoStack supports max 16 sockets, 2 are already reserved by stack..
+#define STRESS_TESTS_ENABLE         // Long lasting stress tests enabled
+#define STRESS_TESTS_LOOP_COUNT 100  // Stress test loop count
 
 #define NS_MAX_UDP_PACKET_SIZE 2047
 
@@ -31,6 +32,20 @@ void nanostack_network_ready(void)
 {
     tr_info("NanoStack network ready, start testing...\r\n");
     network_ready = 1;
+}
+
+void enable_detailed_tracing(bool high)
+{
+    uint8_t conf = TRACE_MODE_COLOR|TRACE_CARRIAGE_RETURN;
+    if (high)
+    {
+        conf |= TRACE_ACTIVE_LEVEL_ALL;
+    }
+    else
+    {
+        conf |= TRACE_ACTIVE_LEVEL_INFO;
+    }
+    set_trace_config(conf);
 }
 
 int main()
@@ -61,6 +76,8 @@ int main()
         {
             mesh_interface_run();
         } while (0 == network_ready);
+
+        enable_detailed_tracing(true);
 
         rc = socket_api_test_create_destroy(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET4);
         tests_pass = tests_pass && rc;
@@ -102,6 +119,25 @@ int main()
         rc = ns_socket_test_max_num_of_sockets(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_DGRAM,
                 TEST_SERVER, TEST_PORT, mesh_interface_run, MAX_NUM_OF_SOCKETS);
         tests_pass = tests_pass && rc;
+
+#ifdef STRESS_TESTS_ENABLE
+        /*
+         * Stress tests (limit traces during the test as they slow down test speed)
+         */
+        enable_detailed_tracing(false);
+        int i;
+        for (i = 0; i < STRESS_TESTS_LOOP_COUNT; i++)
+        {
+            rc = ns_socket_test_max_num_of_sockets(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_DGRAM,
+                    TEST_SERVER, TEST_PORT, mesh_interface_run, MAX_NUM_OF_SOCKETS);
+            tests_pass = tests_pass && rc;
+        }
+
+        rc = ns_socket_test_udp_traffic(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_DGRAM,
+                TEST_SERVER, TEST_PORT, mesh_interface_run, STRESS_TESTS_LOOP_COUNT, 10);
+        tests_pass = tests_pass && rc;
+        enable_detailed_tracing(true);
+#endif /* STRESS_TESTS_ENABLE */
 
         /*
          * Test Socket API's with illegal values

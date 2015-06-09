@@ -48,10 +48,22 @@ int ns_socket_test_connect_failure(socket_stack_t stack, socket_address_family_t
 /*
  * \brief Test maximum number of sockets.
  * -Create sockets until socket creation fails.
- * -Send_to and recv_from for each socket
+ * -Verify socket operation with function send_to() and recv_from()
+ * -Close sockets
  */
 int ns_socket_test_max_num_of_sockets(socket_stack_t stack, socket_address_family_t af, socket_proto_family_t pf,
         const char* server, uint16_t port, run_func_t run_cb, uint8_t max_num_of_sockets);
+
+/*
+ * \brief Test UDP Socket data sending and receiving.
+ * -Create sockets
+ * -Use send_to() to send data to each socket
+ * -Run stack as long as recv_from() returns data to socket
+ * -Repeat sending and receiving as indicated by parameter max_loops
+ * -Destroy all sockets
+ */
+int ns_socket_test_udp_traffic(socket_stack_t stack, socket_address_family_t af, socket_proto_family_t pf,
+        const char* server, uint16_t port, run_func_t run_cb, uint16_t max_loops, uint8_t max_num_of_sockets);
 
 /*
  * \brief Test recv_from API with error values.

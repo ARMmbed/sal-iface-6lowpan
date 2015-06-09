@@ -17,11 +17,12 @@
 #include "net_interface.h"
 #include "socket_api.h"	// nanostack(6lowpan) socket api
 #include "atmel-rf-driver/driverRFPhy.h"
-// For tracing we need to define flag, have include and define group
 #define HAVE_DEBUG 1
 #include "ns_trace.h"
-#define TRACE_GROUP  "ns_wrapper"
 #include "mbed-6lowpan-adaptor/ns_wrapper.h"
+
+// For tracing we need to define define group
+#define TRACE_GROUP  "ns_wrap"
 
 #define NS_WRAPPER_SOCKETS_MAX  16  //same as NanoStack SOCKET_MAX
 #define MALLOC  ns_dyn_mem_alloc
@@ -100,7 +101,7 @@ void ns_wrapper_socket_callback(void *cb)
     switch (sock_cb->event_type)
     {
     case SOCKET_DATA:
-        tr_debug("SOCKET_DATA, %d bytes", sock_cb->d_len);
+        tr_debug("SOCKET_DATA, sock=%d, bytes=%d", sock_cb->socket_id, sock_cb->d_len);
         ns_wrapper_data_received(sock_cb);
         break;
     case SOCKET_BIND_DONE:
