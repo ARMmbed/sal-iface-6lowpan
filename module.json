@@ -1,6 +1,6 @@
 {
   "name": "mbed-6lowpan-adaptor",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Socket and configuration API for mesh stack.",
   "keywords": [],
   "author": "Arto Kinnunen <arto.kinnunen@arm.com>",
@@ -15,10 +15,10 @@
   "dependencies": {
     "mbed-6lowpan": "git+ssh://git.oulu.arm.com:29418/nanostack.git#~0.0.10",
     "mbed": "~3.0.1",
-    "mbed-net-sockets": "ARMmbed/mbed-net-sockets#~0.1.0",
+    "mbed-net-sockets": "~0.1.0",
     "mbed-client-libservice": "~2.0.9",
     "atmel-rf-driver": "~0.0.9"
   },
-  "testDependencies": { },
+  "testDependencies": {},
   "targetDependencies": {}
 }
