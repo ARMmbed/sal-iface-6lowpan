@@ -174,8 +174,8 @@ int socket_api_test_socket_str2addr(socket_stack_t stack, socket_address_family_
                 for (unsigned i = 0; i < nIPv4Entries; i++) {
                     err = api->str2addr(&s, &addr, IPv4_TestAddresses[i].test);
                     TEST_EQ(err, SOCKET_ERROR_NONE);
-                    if (!TEST_EQ(addr.storage[0], IPv4_TestAddresses[i].expect)) {
-                        printf ("Expected: %08lx, got: %08lx\r\n", IPv4_TestAddresses[i].expect,addr.storage[0]);
+                    if (!TEST_EQ(addr.ipv6be[0], IPv4_TestAddresses[i].expect)) {
+                        printf ("Expected: %08lx, got: %08lx\r\n", IPv4_TestAddresses[i].expect,addr.ipv6be[0]);
                     }
                 }
                 break;
@@ -183,13 +183,13 @@ int socket_api_test_socket_str2addr(socket_stack_t stack, socket_address_family_
                 for (unsigned i = 0; i < nIPv6Entries; i++) {
                     err = api->str2addr(&s, &addr, IPv6_TestAddresses[i].test);
                     TEST_EQ(err, SOCKET_ERROR_NONE);
-                    if (!(TEST_EQ(addr.storage[0], IPv6_TestAddresses[i].expect[0]) &&
-                            TEST_EQ(addr.storage[1], IPv6_TestAddresses[i].expect[1]) &&
-                            TEST_EQ(addr.storage[2], IPv6_TestAddresses[i].expect[2]) &&
-                            TEST_EQ(addr.storage[3], IPv6_TestAddresses[i].expect[3]))) {
+                    if (!(TEST_EQ(addr.ipv6be[0], IPv6_TestAddresses[i].expect[0]) &&
+                            TEST_EQ(addr.ipv6be[1], IPv6_TestAddresses[i].expect[1]) &&
+                            TEST_EQ(addr.ipv6be[2], IPv6_TestAddresses[i].expect[2]) &&
+                            TEST_EQ(addr.ipv6be[3], IPv6_TestAddresses[i].expect[3]))) {
                         printf ("Expected: %08lx.%08lx.%08lx.%08lx, got: %08lx.%08lx.%08lx.%08lx\r\n",
                                 IPv6_TestAddresses[i].expect[0], IPv6_TestAddresses[i].expect[1], IPv6_TestAddresses[i].expect[2], IPv6_TestAddresses[i].expect[3],
-                                addr.storage[0], addr.storage[1], addr.storage[2], addr.storage[3]);
+                                addr.ipv6be[0], addr.ipv6be[1], addr.ipv6be[2], addr.ipv6be[3]);
                     }
                 }
                 break;
@@ -343,11 +343,10 @@ static void blocking_resolve_cb()
         blocking_resolve_done = true;
         return;
     } else if (e->event == SOCKET_EVENT_DNS) {
-        blocking_resolve_addr.type = e->i.d.addr.type;
-        blocking_resolve_addr.storage[0] = e->i.d.addr.storage[0];
-        blocking_resolve_addr.storage[1] = e->i.d.addr.storage[1];
-        blocking_resolve_addr.storage[2] = e->i.d.addr.storage[2];
-        blocking_resolve_addr.storage[3] = e->i.d.addr.storage[3];
+        blocking_resolve_addr.ipv6be[0] = e->i.d.addr.ipv6be[0];
+        blocking_resolve_addr.ipv6be[1] = e->i.d.addr.ipv6be[1];
+        blocking_resolve_addr.ipv6be[2] = e->i.d.addr.ipv6be[2];
+        blocking_resolve_addr.ipv6be[3] = e->i.d.addr.ipv6be[3];
         blocking_resolve_domain = e->i.d.domain;
         blocking_resolve_err = SOCKET_ERROR_NONE;
         blocking_resolve_done = true;
@@ -562,9 +561,8 @@ int socket_api_test_echo_client_connected(socket_stack_t stack, socket_address_f
                 memcpy(&rxaddr, &addr, sizeof(rxaddr));
                 // Receive from...
                 err = api->recv_from(&s, (void*) ((uintptr_t) data + rx_bytes), &len, &rxaddr, &rxport);
-                TEST_EQ(rxaddr.type, stack);
                 // ON IPv6, replies are coming from temporary IP address, only 2 first part are valid
-                int rc = memcmp(&rxaddr.storage, &addr.storage, sizeof(rxaddr.storage)/2);
+                int rc = memcmp(&rxaddr.ipv6be, &addr.ipv6be, sizeof(rxaddr.ipv6be)/2);
                 if(!TEST_EQ(rc, 0)) {
                     TEST_PRINT("Spurious receive packet\r\n");
                 }
@@ -930,10 +928,9 @@ int ns_udp_test_buffered_recv_from(socket_stack_t stack, socket_address_family_t
             // Receive from...
             err = api->recv_from(&sock, (void*) ((uintptr_t) data + rx_bytes),
                     &len, &rxaddr, &rxport);
-            TEST_EQ(rxaddr.type, stack);
             // For IPv6 addresses, replies are coming from temporary IPv6 address, only 8 first bytes are the same
-            int rc = memcmp(&rxaddr.storage, &addr.storage,
-                    sizeof(rxaddr.storage) / 2);
+            int rc = memcmp(&rxaddr.ipv6be, &addr.ipv6be,
+                    sizeof(rxaddr.ipv6be) / 2);
             if (!TEST_EQ(rc, 0))
             {
                 TEST_PRINT("Spurious receive packet\r\n");
@@ -1044,8 +1041,7 @@ int ns_socket_test_bind(socket_stack_t stack, socket_address_family_t af,
 
     // bind server socket to port
     socket_addr address;
-    memset(&address.storage[0], 0, sizeof(address.storage));
-    address.type = SOCKET_STACK_NANOSTACK_IPV6;
+    memset(&address.ipv6be[0], 0, sizeof(address.ipv6be));
     err = api->bind(&sock_srv, &address, CMD_REPLY_DIFF_LOCAL_PORT);
     if (!TEST_EQ(err, SOCKET_ERROR_NONE))
     {
@@ -1111,9 +1107,8 @@ int ns_socket_test_bind(socket_stack_t stack, socket_address_family_t af,
         memcpy(&rxaddr, &addr, sizeof(rxaddr));
         // Receive from...
         err = api->recv_from(&sock_srv, data, &len, &rxaddr, &rxport);
-        TEST_EQ(rxaddr.type, stack);
         // ON IPv6, replies are coming from temporary IP address, only 2 first part are valid
-        int rc = memcmp(&rxaddr.storage, &addr.storage, sizeof(rxaddr.storage) / 2);
+        int rc = memcmp(&rxaddr.ipv6be, &addr.ipv6be, sizeof(rxaddr.ipv6be) / 2);
         if (!TEST_EQ(rc, 0))
         {
             TEST_PRINT("Spurious receive packet\r\n");
@@ -1681,18 +1676,9 @@ int ns_socket_test_connect_api(socket_stack_t stack, socket_address_family_t af,
         TEST_EXIT();
     }
 
-    memset(&addr, 0 , sizeof (socket_addr));
-    addr.type = SOCKET_STACK_NANOSTACK_IPV6;
-
     // test NULL address
     err = api->connect(&sock, NULL, port);
     TEST_EQ(err, SOCKET_ERROR_NULL_PTR);
-
-    // test bad address type
-    addr.type = SOCKET_STACK_UNINIT;
-    err = api->connect(&sock, &addr, port);
-    TEST_EQ(err, SOCKET_ERROR_BAD_ADDRESS);
-    addr.type = SOCKET_STACK_NANOSTACK_IPV6;
 
     // destroy the socket
     err = api->destroy(&sock);
@@ -1742,14 +1728,12 @@ int ns_socket_test_bind_api(socket_stack_t stack, socket_address_family_t af,
 
     // address not IN_ANY
     socket_addr address;
-    address.storage[0] = 1;
-    address.type = SOCKET_STACK_NANOSTACK_IPV6;
+    address.ipv6be[0] = 1;
     err = api->bind(&sock_client, &address, CMD_REPLY_DIFF_LOCAL_PORT);
     TEST_NEQ(err, SOCKET_ERROR_NONE);
-    memset(&address.storage[0], 0, 16);
+    memset(&address.ipv6be[0], 0, 16);
 
     // test port 0
-    address.type = SOCKET_STACK_NANOSTACK_IPV6;
     err = api->bind(&sock_client, &address, 0);
     TEST_NEQ(err, SOCKET_ERROR_NONE);
 

@@ -220,10 +220,6 @@ socket_error_t ns_sal_socket_connect(struct socket *sock,
         return SOCKET_ERROR_NULL_PTR;
 
     }
-    else if (SOCKET_STACK_NANOSTACK_IPV6 != address->type)
-    {
-        return SOCKET_ERROR_BAD_ADDRESS;
-    }
 
     ns_address_t ns_address;
     convert_mbed_addr_to_ns(&ns_address, address, port);
@@ -302,12 +298,10 @@ socket_error_t ns_sal_str2addr(const struct socket *sock,
     else if (SOCKET_STACK_NANOSTACK_IPV6 != sock->stack)
     {
         err = SOCKET_ERROR_BAD_STACK;
-        addr->type = SOCKET_STACK_UNINIT;
     }
     else
     {
-        stoip6(address, strlen(address), addr->storage);
-        addr->type = sock->stack;
+        stoip6(address, strlen(address), addr->ipv6be);
     }
 
     return err;

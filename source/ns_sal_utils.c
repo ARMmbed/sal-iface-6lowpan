@@ -16,21 +16,12 @@ void convert_mbed_addr_to_ns(ns_address_t *ns_addr,
 {
     ns_addr->type = ADDRESS_IPV6;
     ns_addr->identifier = port;
-    memcpy(ns_addr->address, s_addr->storage, 16);
+    memcpy(ns_addr->address, s_addr->ipv6be, 16);
 }
 
 void convert_ns_addr_to_mbed(struct socket_addr *s_addr, const ns_address_t *ns_addr,
         uint16_t *port)
 {
     *port = ns_addr->identifier;
-    if (ADDRESS_IPV4 == ns_addr->type)
-    {
-        // TODO: Fix address type when it is available in the API
-        s_addr->type = SOCKET_STACK_NANOSTACK_IPV6;
-    }
-    else
-    {
-        s_addr->type = SOCKET_STACK_NANOSTACK_IPV6;
-    }
-    memcpy(s_addr->storage, ns_addr->address, 16);
+    memcpy(s_addr->ipv6be, ns_addr->address, 16);
 }

@@ -33,9 +33,8 @@ void ns_sal_callback_name_resolved(void* context, const char *address)
     socket_event_t e;
     struct socket *socket = (struct socket*) context;
     e.event = SOCKET_EVENT_DNS;
-    e.i.d.addr.type = SOCKET_STACK_NANOSTACK_IPV6;
     e.i.d.domain = address;
-    stoip6(address, strlen(address), e.i.d.addr.storage);
+    stoip6(address, strlen(address), e.i.d.addr.ipv6be);
     send_socket_callback(socket, &e);
 }
 
