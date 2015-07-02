@@ -64,6 +64,43 @@ void ns_sal_copy_datagrams(struct socket *socket, uint8_t *dest, size_t *len,
     FREE(data_buf);
 }
 
+void ns_sal_copy_stream(struct socket *socket, uint8_t *dest, size_t *len)
+{
+    uint16_t copied_total = 0;
+    data_buff_t *data_buf = (data_buff_t*) socket->rxBufChain;
+
+    for(;*len != 0 && NULL != data_buf;)
+     {
+         if ((data_buf->length + copied_total) > *len)
+         {
+             /* Partial copy, more data than space avail */
+             uint16_t partial_amount = *len - copied_total;
+             if (0 != partial_amount)
+             {
+                 memcpy(&dest[copied_total], &data_buf->payload, partial_amount);
+                 copied_total += partial_amount;
+                 /* move memory to start of payload and adjust length */
+                 memmove(&data_buf->payload[0],
+                         &data_buf->payload[partial_amount],
+                         data_buf->length - partial_amount);
+                 data_buf->length -= partial_amount;
+             }
+             break;
+         }
+         else
+         {
+             /* Full copy, copy whole buffer to dest and move next one to first */
+             memcpy(&dest[copied_total], data_buf->payload, data_buf->length);
+             copied_total += data_buf->length;
+             socket->rxBufChain = data_buf->next;
+             FREE(data_buf);
+             data_buf = (data_buff_t*)socket->rxBufChain;
+         }
+     } /* for space avail and data available */
+
+    *len = copied_total;
+}
+
 socket_error_t ns_sal_recv_validate(struct socket *socket, void * buf, size_t *len)
 {
     if (socket == NULL || len == NULL || buf == NULL || socket->impl == NULL)
@@ -441,10 +478,15 @@ socket_error_t ns_sal_socket_send_to(struct socket *socket, const void * buf,
 socket_error_t ns_sal_socket_recv(struct socket *socket, void * buf,
         size_t *len)
 {
-    (void) socket;
-    (void)buf;
-    (void) len;
-    return SOCKET_ERROR_UNIMPLEMENTED;
+    socket_error_t err = ns_sal_recv_validate(socket, buf, len);
+    if (err != SOCKET_ERROR_NONE)
+    {
+        return err;
+    }
+
+    ns_sal_copy_stream(socket, buf, len);
+
+    return SOCKET_ERROR_NONE;
 }
 
 /* socket_api function, see socket_api.h for details */
