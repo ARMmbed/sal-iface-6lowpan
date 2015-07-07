@@ -272,7 +272,7 @@ int socket_api_test_connect_close(socket_stack_t stack, socket_address_family_t 
         timedout = 0;
         connected = 0;
         mbed::Timeout to;
-        to.attach(onTimeout, SOCKET_TEST_TIMEOUT);
+        to.attach(onTimeout, 2*SOCKET_TEST_TIMEOUT);
         err = api->connect(&s, &addr, port);
         TEST_EQ(err, SOCKET_ERROR_NONE);
         if (err!=SOCKET_ERROR_NONE) {
@@ -297,7 +297,7 @@ int socket_api_test_connect_close(socket_stack_t stack, socket_address_family_t 
         // close the connection
         timedout = 0;
         closed = 0;
-        to.attach(onTimeout, SOCKET_TEST_TIMEOUT);
+        to.attach(onTimeout, 4*SOCKET_TEST_TIMEOUT);
         err = api->close(&s);
         TEST_EQ(err, SOCKET_ERROR_NONE);
         if (err!=SOCKET_ERROR_NONE) {

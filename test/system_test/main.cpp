@@ -16,7 +16,7 @@
 
 // main IPv6 address
 // Note! Replies are coming from temporary address unless feature disabled from server side.
-#define TEST_SERVER "FD00:FF1:CE0B:A5E1:1068:AF13:9B61:D557"
+#define TEST_SERVER         "FD00:FF1:CE0B:A5E1:1068:AF13:9B61:D557"
 #define TEST_PORT           50001
 #define TEST_NO_SRV_PORT    40000   // No server on this port
 #define CONNECT_PORT        50000
@@ -85,11 +85,8 @@ int main()
         rc = socket_api_test_socket_str2addr(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET4);
         tests_pass = tests_pass && rc;
 
-#if 0
-        // close doesn't generate callback and test case fails = > will be fixed when making connect/close
         rc = socket_api_test_connect_close(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_DGRAM, TEST_SERVER, CONNECT_PORT, mesh_interface_run);
         tests_pass = tests_pass && rc;
-#endif
 
         rc = socket_api_test_echo_client_connected(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_DGRAM,
                 false, TEST_SERVER, TEST_PORT, mesh_interface_run, NS_MAX_UDP_PACKET_SIZE);
