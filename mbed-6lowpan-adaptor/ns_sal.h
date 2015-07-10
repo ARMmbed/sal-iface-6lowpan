@@ -5,7 +5,7 @@
 #define _NS_SAL_H_
 
 /*
- * \brief Initialise NanoStack Socket Abstraction layer.
+ * \brief Initialize NanoStack Socket Abstraction layer.
  */
-extern uint8_t ns_sal_init_stack(void);
+uint8_t ns_sal_init_stack(void);
 #endif /* _NS_SAL_H_ */

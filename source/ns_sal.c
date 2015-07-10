@@ -7,7 +7,6 @@
  */
 
 #include <string.h> // memcpy
-
 #include <mbed-net-socket-abstract/socket_api.h>
 #include "ns_address.h"
 #include "net_interface.h"
@@ -15,7 +14,6 @@
 #include "mbed-6lowpan-adaptor/ns_sal_callback.h"
 #include "mbed-6lowpan-adaptor/ns_sal_utils.h"
 #include "mbed-6lowpan-adaptor/ns_wrapper.h"
-#include "mbed-6lowpan-adaptor/mesh_interface.h"
 #include "common_functions.h"
 #include "nsdynmemLIB.h"
 // For tracing we need to define flag, have include and define group
@@ -35,12 +33,6 @@ const struct socket_api nanostack_socket_api;
  */
 socket_error_t ns_sal_init_stack(void)
 {
-    int8_t retval = ns_wrapper_socket_init();
-    if (0 > retval)
-    {
-        return SOCKET_ERROR_UNKNOWN;
-    }
-
     return socket_register_stack(&nanostack_socket_api);
 }
 

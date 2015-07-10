@@ -82,7 +82,7 @@ const struct IPv6Entry IPv6_TestAddresses[] = {
         {"::1",             {0x00000000, 0x00000000, 0x00000000, 0x01000000}},
         {"2003::7634",      {0x00000320, 0x00000000, 0x00000000, 0x34760000}},
         {"1:2:3:4:5:6:7:8", {0x02000100, 0x04000300, 0x06000500, 0x08000700}},
-        {"fd00:ff1:ce0b:a5e1:0:ff:fe00", {0xf10f00fd, 0xe1a50bce, 0xff000000, 0x080000fe}},
+        {"fd00:ff1:ce0b:a5e1:0:ff:fe00", {0xf10f00fd, 0xe1a50bce, 0xff000000, 0x000000fe}},
 };
 
 const unsigned nIPv4Entries = sizeof(IPv4_TestAddresses)/sizeof(struct IPv4Entry);

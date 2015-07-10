@@ -5,7 +5,8 @@
 #include <mbed-net-sockets/UDPSocket.h>
 #include <mbed-net-socket-abstract/socket_api.h>
 #include "test_env.h"
-#include "mbed-6lowpan-adaptor/mesh_interface.h"
+#include "mbed-mesh-api/Mesh6LoWPAN_ND.h"
+#include "atmel-rf-driver/driverRFPhy.h"    // rf_device_register
 #include "UDPTest.h"
 // For tracing we need to define flag, have include and define group
 #define HAVE_DEBUG 1
@@ -16,52 +17,59 @@
 #define TEST_DATA   "Example UDP data message sent to gateway and echoed back!"
 
 static UDPTest *udpTest = NULL;
-volatile uint8_t network_ready = 0;
+static mesh_connection_status_t mesh_network_state = MESH_DISCONNECTED;
 
-void nanostack_network_ready(void)
+/*
+ * Callback from mesh network. Called when network state changes.
+ */
+void mesh_network_callback(mesh_connection_status_t mesh_state)
 {
-    tr_info("Network established");
-    network_ready = 1;
+    tr_info("mesh_network_callback() %d", mesh_state);
+    mesh_network_state = mesh_state;
 }
 
 int main() {
-    socket_error_t error_status;
+    Mesh6LoWPAN_ND *mesh_api = Mesh6LoWPAN_ND::getInstance();
     char router_addr[50];
+    int8_t status;
 
-    error_status = mesh_interface_init();
-    if (SOCKET_ERROR_NONE != error_status)
+    status = mesh_api->init(rf_device_register(), mesh_network_callback);
+    if (status != MESH_ERROR_NONE)
     {
-        tr_error("Can't initialize NanoStack!");
+        tr_error("Mesh network initialization failed %d!", status);
         return 1;
     }
-    tr_info("NanoStack UDP Example, stack initialized");
 
-    error_status = mesh_interface_connect(nanostack_network_ready);
+    status = mesh_api->connect();
 
-    if (SOCKET_ERROR_NONE != error_status)
+    if (status != MESH_ERROR_NONE)
     {
-        tr_error("Can't connect to NanoStack!");
+        tr_error("Can't connect to mesh network!");
         return 1;
     }
 
     do
     {
-        mesh_interface_run();
-    } while(0 == network_ready);
+        mesh_api->processEvent();
+    } while(mesh_network_state != MESH_CONNECTED);
 
-    tr_info("NanoStack connected to network");
+    tr_info("NanoStack connected to mesh network");
 
     tr_info("Start UDPTest");
-    if (SOCKET_ERROR_NONE == mesh_interface_get_router_ip_address(router_addr, sizeof(router_addr)))
+
+    if (true == mesh_api->getRouterIpAddress(router_addr, sizeof(router_addr)))
     {
         tr_info("Echoing data to router IP address: %s", router_addr);
         udpTest = new UDPTest();
         udpTest->startEcho(router_addr, ECHO_PORT, TEST_DATA);
+    } else {
+        tr_info("Failed to read own IP address");
+        return -1;
     }
 
     /* wait network to be established */
     do {
-        mesh_interface_run();
+        mesh_api->processEvent();
     } while(0 == udpTest->isReceived());
 
     tr_info("Response received from router:");
@@ -70,14 +78,13 @@ int main() {
     delete udpTest;
     udpTest = NULL;
 
-    mesh_interface_disconnect();
-//    do
-//    {
-//        nanostack_run();
-//        __WFI();
-//    } while(0 == disconnected);
+    mesh_api->disconnect();
+    do
+    {
+        mesh_api->processEvent();
+    } while(mesh_network_state != MESH_DISCONNECTED);
 
-    tr_info("All done!");
+    tr_info("UDP echoing done!");
 
     return 0;
 }
