@@ -6,7 +6,8 @@
 #include <mbed-net-sockets/UDPSocket.h>
 #include <mbed-net-socket-abstract/socket_api.h>
 #include <mbed-net-socket-abstract/test/ctest_env.h>
-#include "mbed-6lowpan-adaptor/mesh_interface.h"
+#include "mbed-mesh-api/Mesh6LoWPAN_ND.h"
+#include "atmel-rf-driver/driverRFPhy.h"    // rf_device_register
 #include "test_cases.h"
 #include "mbed/test_env.h"
 #define HAVE_DEBUG 1
@@ -26,12 +27,21 @@
 
 #define NS_MAX_UDP_PACKET_SIZE 2047
 
-volatile uint8_t network_ready = 0;
+volatile uint8_t mesh_network_state = MESH_DISCONNECTED;
+Mesh6LoWPAN_ND *mesh_api = NULL;
 
-void nanostack_network_ready(void)
+/*
+ * Callback from mesh network. Called when network state changes.
+ */
+void mesh_network_callback(mesh_connection_status_t mesh_state)
 {
-    tr_info("NanoStack network ready, start testing...\r\n");
-    network_ready = 1;
+    tr_info("mesh_network_callback() %d", mesh_state);
+    mesh_network_state = mesh_state;
+}
+
+void mesh_interface_run()
+{
+    mesh_api->processEvent();
 }
 
 void enable_detailed_tracing(bool high)
@@ -60,22 +70,27 @@ int main()
 
     do
     {
-        socket_error_t err = mesh_interface_init();
-        if (!TEST_EQ(err, SOCKET_ERROR_NONE))
+        int8_t err;
+
+        mesh_api = Mesh6LoWPAN_ND::getInstance();
+
+        err = mesh_api->init(rf_device_register(), mesh_network_callback);
+
+        if (!TEST_EQ(err, MESH_ERROR_NONE))
         {
             break;
         }
 
-        err = mesh_interface_connect(nanostack_network_ready);
-        if (!TEST_EQ(err, SOCKET_ERROR_NONE))
+        err = mesh_api->connect();
+        if (!TEST_EQ(err, MESH_ERROR_NONE))
         {
             break;
         }
 
         do
         {
-            mesh_interface_run();
-        } while (0 == network_ready);
+            mesh_api->processEvent();
+        } while(mesh_network_state != MESH_CONNECTED);
 
         enable_detailed_tracing(true);
 
@@ -157,6 +172,8 @@ int main()
         rc = ns_socket_test_bind_api(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_STREAM);
         tests_pass = tests_pass && rc;
     } while (0);
+
+    delete mesh_api;
 
     MBED_HOSTTEST_RESULT(tests_pass);
     return !tests_pass;

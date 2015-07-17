@@ -4,7 +4,6 @@
 #include "mbed.h"
 #include <mbed-net-socket-abstract/socket_api.h>
 #include <mbed-net-sockets/TCPStream.h>
-#include "../../mbed-6lowpan-adaptor/mesh_interface.h"
 
 // For tracing we need to define flag, have include and define group
 #define HAVE_DEBUG 1
@@ -21,7 +20,7 @@ TCPExample::TCPExample() :
 
 TCPExample::~TCPExample()
 {
-    tr_debug("Destructor()");
+    tr_debug("~TCPExample()");
 }
 
 /**

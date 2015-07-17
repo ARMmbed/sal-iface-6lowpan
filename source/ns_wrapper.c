@@ -5,18 +5,12 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
-#include "eventOS_event.h"
-#include "eventOS_scheduler.h"
 #include "nsdynmemLIB.h"
-#include "randLIB.h"
 #include "ip6string.h"  //ip6tos
-#include "platform/arm_hal_timer.h"
 #include "ns_address.h"
-#include "mbed-6lowpan-adaptor/node_tasklet.h"
 #include "mbed-6lowpan-adaptor/ns_sal_callback.h"
 #include "net_interface.h"
-#include "socket_api.h"	// nanostack(6lowpan) socket api
-#include "atmel-rf-driver/driverRFPhy.h"
+#include "socket_api.h"	// nanostack socket api
 #define HAVE_DEBUG 1
 #include "ns_trace.h"
 #include "mbed-6lowpan-adaptor/ns_wrapper.h"
@@ -28,10 +22,6 @@
 #define MALLOC  ns_dyn_mem_alloc
 #define FREE    ns_dyn_mem_free
 
-/* Heap for NanoStack */
-#define APP_DEFINED_HEAP_SIZE 32500
-static uint8_t app_stack_heap[APP_DEFINED_HEAP_SIZE +1];
-
 // table for socket contexts
 typedef struct _socket_context_map_t {
     void* context;
@@ -39,35 +29,10 @@ typedef struct _socket_context_map_t {
 
 static socket_context_map_t socket_context_tbl[NS_WRAPPER_SOCKETS_MAX] = {{0}};
 
-/* Prototypes */
-
-/* External prototypes */
-extern void event_dispatch_cycle(void);
-
 /**** Private functions ****/
-/*
- * Memory error handler
- */
-static void ns_wrapper_heap_error_handler(heap_fail_t event)
-{
-    tr_error("Error, ns_wrapper_heap_error_handler() %d", event);
-    switch (event)
-    {
-        case NS_DYN_MEM_NULL_FREE:
-        case NS_DYN_MEM_DOUBLE_FREE:
-        case NS_DYN_MEM_ALLOCATE_SIZE_NOT_VALID:
-        case NS_DYN_MEM_POINTER_NOT_VALID:
-        case NS_DYN_MEM_HEAP_SECTOR_CORRUPTED:
-        case NS_DYN_MEM_HEAP_SECTOR_UNITIALIZED:
-            break;
-        default:
-            break;
-    }
-    while(1);
-}
 
 /*
- * Handler for received data
+ * Handler for the received data
  */
 void ns_wrapper_data_received(socket_callback_t *sock_cb) {
     if (sock_cb->d_len > 0)
@@ -140,63 +105,6 @@ void ns_wrapper_socket_callback(void *cb)
         ns_sal_callback_tx_error(socket_context_tbl[sock_cb->socket_id].context);
         break;
     }
-}
-
-/**** Public functions ****/
-int8_t ns_wrapper_socket_init(void)
-{
-    int8_t rf_phy_device_register_id;
-    char if_desciption[] = "6LoWPAN_NODE";
-    ns_dyn_mem_init(app_stack_heap, APP_DEFINED_HEAP_SIZE, ns_wrapper_heap_error_handler, 0);
-    randLIB_seed_random();
-    platform_timer_enable();
-    eventOS_scheduler_init();
-    trace_init(); // trace system needs to be initialized right after eventOS_scheduler_init
-    net_init_core();
-    rf_phy_device_register_id = rf_device_register();
-    network_interface_id = arm_nwk_interface_init(NET_INTERFACE_RF_6LOWPAN, rf_phy_device_register_id, if_desciption);
-    return network_interface_id;
-}
-
-int8_t ns_wrapper_get_ip_address(char *address, int8_t len)
-{
-    uint8_t binary_ipv6[16];
-
-    if ((len > 40) && (0 == arm_net_address_get(network_interface_id, ADDR_IPV6_GP, binary_ipv6)))
-    {
-        ip6tos(binary_ipv6, address);
-        tr_info("IP address: %s", address);
-        return 0;
-    } else
-    {
-        return -1;
-    }
-}
-
-int8_t ns_wrapper_get_router_ip_address(char *address, int8_t len)
-{
-    network_layer_address_s nd_address;
-
-    if ((len > 40) && (0 == arm_nwk_nd_address_read(network_interface_id, &nd_address)))
-    {
-        ip6tos(nd_address.border_router, address);
-        tr_info("Router IP address: %s", address);
-        return 0;
-    } else
-    {
-        return -1;
-    }
-}
-
-int8_t ns_wrapper_socket_network_connect(func_cb_t callback)
-{
-    int8_t error_status;
-    error_status = eventOS_event_handler_create(&tasklet_main, ARM_LIB_TASKLET_INIT_EVENT);
-    if (0 > error_status) {
-        return error_status;
-    }
-    node_tasklet_register_network_ready_cb(callback);
-    return error_status;
 }
 
 void ns_wrapper_release_socket_data(sock_data_s *sock_data_ptr)
@@ -280,7 +188,3 @@ int8_t ns_wrapper_socket_recv_from(sock_data_s *sock_data_ptr, ns_address_t *add
     return socket_read(sock_data_ptr->socket_id, addr, buffer, length);
 }
 
-void ns_wrapper_run(void)
-{
-    event_dispatch_cycle();
-}

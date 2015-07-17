@@ -16,9 +16,11 @@
     "mbed-6lowpan": "~0.0.10",
     "mbed-core": "~0.1.1",
     "mbed-net-sockets": "~0.1.0",
-    "mbed-client-libservice": "~2.0.9",
-    "atmel-rf-driver": "~0.0.9"
+    "mbed-client-libservice": "~3.0.1"
   },
-  "testDependencies": {},
+  "testDependencies": {
+    "mbed-mesh-api": "~0.0.1",
+    "atmel-rf-driver": "~0.0.13"
+  },
   "targetDependencies": {}
 }
