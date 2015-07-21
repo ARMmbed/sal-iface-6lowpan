@@ -24,6 +24,13 @@
 #define MALLOC  ns_dyn_mem_alloc
 #define FREE    ns_dyn_mem_free
 
+#ifdef FUNC_ENTRY_TRACE_ENABLED
+#define FUNC_ENTRY_TRACE    tr_debug
+#else
+#define FUNC_ENTRY_TRACE(...)
+#endif
+
+
 // Forward declaration of this socket_api
 const struct socket_api nanostack_socket_api;
 
@@ -128,7 +135,7 @@ static socket_error_t ns_sal_socket_create(struct socket *sock,
 {
     sock_data_s *sock_data_ptr;
 
-    tr_debug("ns_sal_socket_create() af=%d pf=%d", af, pf);
+    FUNC_ENTRY_TRACE("ns_sal_socket_create() af=%d pf=%d", af, pf);
 
     if (NULL == sock || NULL == handler)
     {
@@ -177,7 +184,7 @@ static socket_error_t ns_sal_socket_create(struct socket *sock,
 static socket_error_t ns_sal_socket_destroy(struct socket *sock)
 {
     socket_error_t err = SOCKET_ERROR_NONE;
-    tr_debug("ns_sal_socket_destroy()");
+    FUNC_ENTRY_TRACE("ns_sal_socket_destroy()");
     if (NULL == sock)
     {
         return SOCKET_ERROR_NULL_PTR;
@@ -247,7 +254,6 @@ socket_error_t ns_sal_socket_connect(struct socket *sock,
     if (NULL == sock || NULL == address || NULL == sock->impl)
     {
         return SOCKET_ERROR_NULL_PTR;
-
     }
 
     ns_address_t ns_address;
@@ -282,7 +288,7 @@ void periodic_task(void)
 socket_api_handler_t ns_sal_socket_periodic_task(
         const struct socket * socket)
 {
-    tr_debug("ns_sal_socket_periodic_task()");
+    FUNC_ENTRY_TRACE("ns_sal_socket_periodic_task()");
     if (SOCKET_STREAM == socket->family)
     {
         return periodic_task;
@@ -293,7 +299,7 @@ socket_api_handler_t ns_sal_socket_periodic_task(
 /* socket_api function, see socket_api.h for details */
 uint32_t ns_sal_socket_periodic_interval(const struct socket * socket)
 {
-    tr_debug("ns_sal_socket_periodic_interval()");
+    FUNC_ENTRY_TRACE("ns_sal_socket_periodic_interval()");
     if (SOCKET_STREAM == socket->family)
     {
         return 0xffffffff;
@@ -319,7 +325,7 @@ socket_error_t ns_sal_str2addr(const struct socket *sock,
         struct socket_addr *addr, const char *address)
 {
     socket_error_t err = SOCKET_ERROR_NONE;
-    tr_debug("ns_sal_str2addr() %s", address);
+    FUNC_ENTRY_TRACE("ns_sal_str2addr() %s", address);
     if (NULL == sock || NULL == addr || NULL == address)
     {
         err = SOCKET_ERROR_NULL_PTR;
@@ -363,6 +369,7 @@ socket_error_t ns_sal_start_listen(struct socket *socket,
 {
     (void) socket;
     (void) backlog;
+    tr_error("ns_sal_start_listen() not implemented");
     return SOCKET_ERROR_UNIMPLEMENTED;
 }
 
@@ -370,6 +377,7 @@ socket_error_t ns_sal_start_listen(struct socket *socket,
 socket_error_t ns_sal_stop_listen(struct socket *socket)
 {
     (void) socket;
+    tr_error("ns_sal_stop_listen() not implemented");
     return SOCKET_ERROR_UNIMPLEMENTED;
 }
 
@@ -379,6 +387,7 @@ socket_error_t ns_sal_socket_accept(struct socket *socket,
 {
     (void) socket;
     (void) handler;
+    tr_error("ns_sal_socket_accept() not implemented");
     return SOCKET_ERROR_UNIMPLEMENTED;
 }
 
@@ -389,7 +398,9 @@ socket_error_t ns_sal_socket_send(struct socket *socket, const void * buf,
     socket_error_t err = SOCKET_ERROR_UNIMPLEMENTED;
     if (SOCKET_DGRAM == socket->family)
     {
-        // TODO
+        // UDP sockets can't be connected in mesh.
+        tr_error("Can't send using family SOCKET_DGRAM!");
+        err = SOCKET_ERROR_BAD_FAMILY;
     }
     else if (SOCKET_STREAM == socket->family)
     {
@@ -422,7 +433,7 @@ socket_error_t ns_sal_socket_send_to(struct socket *socket, const void * buf,
     socket_error_t error_status = SOCKET_ERROR_NONE;
     int8_t send_to_status;
 
-    tr_debug("ns_sal_socket_send_to()");
+    FUNC_ENTRY_TRACE("ns_sal_socket_send_to()");
     if (NULL == socket || NULL == socket->impl || NULL == buf || NULL == addr)
     {
         return SOCKET_ERROR_NULL_PTR;

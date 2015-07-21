@@ -18,6 +18,13 @@
 // For tracing we need to define define group
 #define TRACE_GROUP  "ns_wrap"
 
+/* function entry traces */
+#ifdef FUNC_ENTRY_TRACE_ENABLED
+#define FUNC_ENTRY_TRACE    tr_debug
+#else
+#define FUNC_ENTRY_TRACE(...)
+#endif
+
 #define NS_WRAPPER_SOCKETS_MAX  16  //same as NanoStack SOCKET_MAX
 #define MALLOC  ns_dyn_mem_alloc
 #define FREE    ns_dyn_mem_free
@@ -60,7 +67,7 @@ void ns_wrapper_socket_callback(void *cb)
 {
     socket_callback_t *sock_cb = (socket_callback_t *) cb;
 
-    tr_debug("socket_callback() sock=%d, event=%d, interface=%d, data len=%d",
+    FUNC_ENTRY_TRACE("socket_callback() sock=%d, event=%d, interface=%d, data len=%d",
             sock_cb->socket_id, sock_cb->event_type, sock_cb->interface_id, sock_cb->d_len);
 
     switch (sock_cb->event_type)
@@ -114,7 +121,7 @@ void ns_wrapper_release_socket_data(sock_data_s *sock_data_ptr)
 
 int8_t ns_wrapper_socket_free(sock_data_s *sock_data_ptr)
 {
-    tr_debug("ns_wrapper_socket_free() sock=%d", sock_data_ptr->socket_id);
+    FUNC_ENTRY_TRACE("ns_wrapper_socket_free() sock=%d", sock_data_ptr->socket_id);
     int8_t retval = socket_free(sock_data_ptr->socket_id);
     ns_wrapper_release_socket_data(sock_data_ptr);
     return retval;
@@ -123,6 +130,7 @@ int8_t ns_wrapper_socket_free(sock_data_s *sock_data_ptr)
 sock_data_s* ns_wrapper_socket_open(int8_t socket_type, int8_t identifier, void *context)
 {
     int8_t protocol = SOCKET_TCP;
+    FUNC_ENTRY_TRACE("ns_wrapper_socket_open()");
     if (NANOSTACK_SOCKET_UDP == socket_type)
     {
         protocol = SOCKET_UDP;
@@ -153,12 +161,13 @@ sock_data_s* ns_wrapper_socket_open(int8_t socket_type, int8_t identifier, void 
 
 int8_t ns_wrapper_socket_bind(sock_data_s *sock_data_ptr, ns_address_t *address)
 {
+    FUNC_ENTRY_TRACE("ns_wrapper_socket_bind() sock=%d", sock_data_ptr->socket_id);
     return socket_bind(sock_data_ptr->socket_id, address);
 }
 
 int8_t ns_wrapper_socket_close(sock_data_s *sock_data_ptr)
 {
-    tr_debug("ns_wrapper_socket_close() sock=%d", sock_data_ptr->socket_id);
+    FUNC_ENTRY_TRACE("ns_wrapper_socket_close() sock=%d", sock_data_ptr->socket_id);
     int8_t error = socket_close(sock_data_ptr->socket_id, NULL,
             sock_data_ptr->security_session_id);
     return error;
@@ -166,25 +175,25 @@ int8_t ns_wrapper_socket_close(sock_data_s *sock_data_ptr)
 
 int8_t ns_wrapper_socket_connect(sock_data_s *sock_data_ptr, ns_address_t *address)
 {
-    tr_debug("ns_wrapper_socket_connect() sock=%d", sock_data_ptr->socket_id);
+    FUNC_ENTRY_TRACE("ns_wrapper_socket_connect() sock=%d", sock_data_ptr->socket_id);
     return socket_connect(sock_data_ptr->socket_id, address, 0);
 }
 
 int8_t ns_wrapper_socket_send(sock_data_s *sock_data_ptr, uint8_t *buffer, uint16_t length)
 {
-    tr_debug("ns_wrapper_socket_send: sock_id=%d, length=%d", sock_data_ptr->socket_id, length);
+    FUNC_ENTRY_TRACE("ns_wrapper_socket_send: sock_id=%d, length=%d", sock_data_ptr->socket_id, length);
     return socket_send(sock_data_ptr->socket_id, buffer, length);
 }
 
 int8_t ns_wrapper_socket_send_to(sock_data_s *sock_data_ptr, ns_address_t *addr, uint8_t *buffer, uint16_t length)
 {
-    tr_debug("ns_wrapper_socket_send_to: sock_id=%d, length=%d, port=%d", sock_data_ptr->socket_id, length, addr->identifier);
+    FUNC_ENTRY_TRACE("ns_wrapper_socket_send_to: sock_id=%d, length=%d, port=%d", sock_data_ptr->socket_id, length, addr->identifier);
     return socket_sendto(sock_data_ptr->socket_id, addr, buffer, length);
 }
 
 int8_t ns_wrapper_socket_recv_from(sock_data_s *sock_data_ptr, ns_address_t *addr, uint8_t *buffer, uint16_t length)
 {
-    tr_debug("ns_wrapper_socket_recv_from: sock_id=%d, buf len=%d, port=%d", sock_data_ptr->socket_id, length, addr->identifier);
+    FUNC_ENTRY_TRACE("ns_wrapper_socket_recv_from: sock_id=%d, buf len=%d, port=%d", sock_data_ptr->socket_id, length, addr->identifier);
     return socket_read(sock_data_ptr->socket_id, addr, buffer, length);
 }
 

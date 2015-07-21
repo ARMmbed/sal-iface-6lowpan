@@ -15,6 +15,12 @@
 #include "ns_trace.h"
 #define TRACE_GROUP  "ns_sal_cb"
 
+#ifdef FUNC_ENTRY_TRACE_ENABLED
+#define FUNC_ENTRY_TRACE    tr_debug
+#else
+#define FUNC_ENTRY_TRACE(...)
+#endif
+
 /*
  * \brief Send callback to mbed client
  * \param socket socket to be used
@@ -22,7 +28,7 @@
  */
 void send_socket_callback(struct socket *socket, socket_event_t *e)
 {
-    tr_debug("send_socket_callback() event=%d", e->event);
+    FUNC_ENTRY_TRACE("send_socket_callback() event=%d", e->event);
     socket->event = e;
     ((socket_api_handler_t) (socket->handler))();
     socket->event = NULL;
