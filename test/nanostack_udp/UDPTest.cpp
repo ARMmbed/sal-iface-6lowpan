@@ -12,9 +12,10 @@
 #include "ns_trace.h"
 #define TRACE_GROUP  "UDPTtest"
 
-UDPTest::UDPTest() :
+UDPTest::UDPTest(data_received_cb data_recv_cb) :
         sock(SOCKET_STACK_NANOSTACK_IPV6)
 {
+    data_recv_callback = data_recv_cb;
     sock.open(SOCKET_AF_INET6);
 }
 
@@ -32,18 +33,18 @@ UDPTest::~UDPTest()
  *
  * @return SOCKET_ERROR_NONE on success, or an error code on failure
  */
-socket_error_t UDPTest::startEcho(const char *address, uint16_t udpPort, const char *testData)
+void UDPTest::startEcho(const char *address, uint16_t udpPort, const char *testData)
 {
     received = false;
     _udpPort = udpPort;
     _data_len = strlen(testData);
     if (_data_len > BUF_LEN)
     {
-        return SOCKET_ERROR_BAD_ALLOC;
+        tr_error("too long data");
     }
     strncpy(_test_data, testData, _data_len);
     /* Start the DNS operation */
-    return sock.resolve(address, handler_t(this, &UDPTest::onDNS));
+    sock.resolve(address, Socket::DNSHandler_t(this, &UDPTest::onDNS));
 }
 
 /**
@@ -73,21 +74,19 @@ char *UDPTest::getResponse()
 /**
  * The DNS Response Handler. Called by the underlaying protocol stack
  *
- * @param[in] err status of the address resolving
  */
-void UDPTest::onDNS(socket_error_t err)
+void UDPTest::onDNS(Socket *s, struct socket_addr sa, const char* domain)
 {
-    /* Extract the Socket event to read the resolved address */
-    socket_event_t *event = sock.getEvent();
-    tr_debug("onDNS()");
-    _resolvedAddr.setAddr(&event->i.d.addr);
+    (void) domain;
+    (void) s;
+    _resolvedAddr.setAddr(&sa);
 
     /* Register the read handler */
-    sock.setOnReadable(handler_t(this, &UDPTest::onRecvFrom));
+    sock.setOnReadable(UDPSocket::ReadableHandler_t(this, &UDPTest::onRecvFrom));
     //sock.setOnReadable(handler_t(this, &UDPTest::onRecv));
     /* Send packet to the remote host */
     tr_info("Sending %d bytes of UDP data...", _data_len);
-    err = sock.send_to(_test_data, _data_len, &_resolvedAddr, _udpPort);
+    socket_error_t err = sock.send_to(_test_data, _data_len, &_resolvedAddr, _udpPort);
     if (err != SOCKET_ERROR_NONE)
     {
         tr_error("Socket Error %d", err);
@@ -97,17 +96,16 @@ void UDPTest::onDNS(socket_error_t err)
 /**
  * Data received indication handler
  * Called by the underlaying protocol stack
- *
- * @param[in] err status of the data receiving
  */
-void UDPTest::onRecvFrom(socket_error_t err)
+void UDPTest::onRecvFrom(Socket *s)
 {
+    (void)s;
     /* Initialize the buffer size */
     size_t nRx = sizeof(_rxBuf);
     tr_debug("onRecvFrom()");
 
     /* Receive some bytes */
-    err = sock.recv_from(_rxBuf, &nRx, &_resolvedAddr, &_udpPort);
+    socket_error_t err = sock.recv_from(_rxBuf, &nRx, &_resolvedAddr, &_udpPort);
     /* A failure on recv is a fatal error in this example */
     if (err != SOCKET_ERROR_NONE)
     {
@@ -122,18 +120,19 @@ void UDPTest::onRecvFrom(socket_error_t err)
     }
 
     received = true;
+    data_recv_callback();
 }
 
 /**
  * Data received indication handler
- * Called by the underlaying protocol stack
+ * Called by the underlying protocol stack
  *
- * @param[in] err status of the data receiving
  */
-void UDPTest::onRecv(socket_error_t err) {
+void UDPTest::onRecv(Socket *s) {
+    (void)s;
     size_t nRx = sizeof(_rxBuf);
     tr_debug("onRecv()");
-    err = sock.recv(_rxBuf, &nRx);
+    socket_error_t err = sock.recv(_rxBuf, &nRx);
     tr_info("Received %d bytes", nRx);
     if (err != SOCKET_ERROR_NONE) {
         tr_error("Socket Error %d", err);
@@ -145,4 +144,5 @@ void UDPTest::onRecv(socket_error_t err) {
     }
 
     received = true;
+    data_recv_callback();
 }

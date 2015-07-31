@@ -3,6 +3,7 @@
  */
 
 #include "mbed.h"
+#include "minar/minar.h"
 #include <mbed-net-sockets/UDPSocket.h>
 #include <mbed-net-socket-abstract/socket_api.h>
 #include <mbed-net-socket-abstract/test/ctest_env.h>
@@ -27,8 +28,16 @@
 
 #define NS_MAX_UDP_PACKET_SIZE 2047
 
-volatile uint8_t mesh_network_state = MESH_DISCONNECTED;
-Mesh6LoWPAN_ND *mesh_api = NULL;
+static uint8_t mesh_network_state = MESH_DISCONNECTED;
+static Mesh6LoWPAN_ND *mesh_api = NULL;
+static int tests_pass = 1;
+
+int runTests(void);
+
+void mesh_interface_run()
+{
+}
+
 
 /*
  * Callback from mesh network. Called when network state changes.
@@ -37,11 +46,15 @@ void mesh_network_callback(mesh_connection_status_t mesh_state)
 {
     tr_info("mesh_network_callback() %d", mesh_state);
     mesh_network_state = mesh_state;
-}
-
-void mesh_interface_run()
-{
-    mesh_api->processEvent();
+    if(mesh_network_state == MESH_CONNECTED) {
+        tr_info("Connected to mesh network!");
+        runTests();
+        mesh_api->disconnect();
+    } else if (mesh_network_state == MESH_DISCONNECTED)
+    {
+        minar::Scheduler::stop();
+        tr_info("All tests done!");
+    }
 }
 
 void enable_detailed_tracing(bool high)
@@ -58,42 +71,34 @@ void enable_detailed_tracing(bool high)
     set_trace_config(conf);
 }
 
-int main()
-{
+void app_start(int, char**) {
+    int8_t err;
+
+    mesh_api = Mesh6LoWPAN_ND::getInstance();
+    err = mesh_api->init(rf_device_register(), mesh_network_callback);
+
+    if (!TEST_EQ(err, MESH_ERROR_NONE)) {
+        return;
+    }
+
+    err = mesh_api->connect();
+    if (!TEST_EQ(err, MESH_ERROR_NONE)) {
+        return;
+    }
+    enable_detailed_tracing(true);
+}
+
+int runTests(void) {
     MBED_HOSTTEST_TIMEOUT(5);
     MBED_HOSTTEST_SELECT(default);
     MBED_HOSTTEST_DESCRIPTION(NanoStack Socket Abstraction Layer tests);
     MBED_HOSTTEST_START("NanoStack SAL");
 
     int rc;
-    int tests_pass = 1;
+    tests_pass = 1;
 
     do
     {
-        int8_t err;
-
-        mesh_api = Mesh6LoWPAN_ND::getInstance();
-
-        err = mesh_api->init(rf_device_register(), mesh_network_callback);
-
-        if (!TEST_EQ(err, MESH_ERROR_NONE))
-        {
-            break;
-        }
-
-        err = mesh_api->connect();
-        if (!TEST_EQ(err, MESH_ERROR_NONE))
-        {
-            break;
-        }
-
-        do
-        {
-            mesh_api->processEvent();
-        } while(mesh_network_state != MESH_CONNECTED);
-
-        enable_detailed_tracing(true);
-
         rc = socket_api_test_create_destroy(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET4);
         tests_pass = tests_pass && rc;
 
@@ -172,8 +177,6 @@ int main()
         rc = ns_socket_test_bind_api(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_STREAM);
         tests_pass = tests_pass && rc;
     } while (0);
-
-    delete mesh_api;
 
     MBED_HOSTTEST_RESULT(tests_pass);
     return !tests_pass;

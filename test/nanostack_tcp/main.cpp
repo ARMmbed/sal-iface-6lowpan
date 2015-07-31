@@ -2,6 +2,7 @@
  * Copyright (c) 2015 ARM. All rights reserved.
  */
 #include "mbed.h"
+#include "minar/minar.h"
 #include <mbed-net-socket-abstract/socket_api.h>
 #include <mbed-net-sockets/TCPStream.h>
 #include "atmel-rf-driver/driverRFPhy.h"    // rf_device_register
@@ -22,64 +23,57 @@
 
 static TCPExample *tcpExample = NULL;
 static uint8_t mesh_network_state = MESH_DISCONNECTED;
+static Mesh6LoWPAN_ND *mesh_api = NULL;
+
+void data_available_callback() {
+    tr_info("data_available_callback()");
+    if (tcpExample->isReceived() == true) {
+        tr_info("Received data from server:");
+        tr_info("Recv: %s", tcpExample->getResponse());
+        tr_info("Sent: %s", TEST_DATA);
+        delete tcpExample;
+        tcpExample = NULL;
+        mesh_api->disconnect();
+    }
+}
 
 void mesh_network_callback(mesh_connection_status_t mesh_state)
 {
     tr_info("mesh_network_callback() %d", mesh_state);
     mesh_network_state = mesh_state;
+    if (mesh_network_state == MESH_CONNECTED) {
+        tr_info("Connected to mesh network!");
+
+        tcpExample = new TCPExample(data_available_callback);
+        tcpExample->startEcho(HOST_ADDR, TEST_PORT, TEST_DATA, sizeof(TEST_DATA));
+    } else if (mesh_network_state == MESH_DISCONNECTED) {
+        delete tcpExample;
+        tcpExample = NULL;
+        minar::Scheduler::stop();
+        tr_info("TCP echoing done!");
+        tr_info("End of program.");
+    } else {
+        tr_error("bad network state");
+    }
+
 }
 
-int main() {
-    Mesh6LoWPAN_ND *mesh_api = Mesh6LoWPAN_ND::getInstance();
+void app_start(int, char**) {
     int8_t status;
 
+    mesh_api = Mesh6LoWPAN_ND::getInstance();
     status = mesh_api->init(rf_device_register(), mesh_network_callback);
-    if (status != MESH_ERROR_NONE)
-    {
+    if (status != MESH_ERROR_NONE) {
         tr_error("Mesh network initialization failed %d!", status);
-        return 1;
+        return;
     }
 
     status = mesh_api->connect();
-    if (status != MESH_ERROR_NONE)
-    {
+    if (status != MESH_ERROR_NONE) {
         tr_error("Can't connect to mesh network!");
-        return 1;
+        return;
     }
 
     uint8_t trace_conf = TRACE_MODE_COLOR|TRACE_CARRIAGE_RETURN|TRACE_ACTIVE_LEVEL_ALL;
     set_trace_config(trace_conf);
-
-    /* wait network to be established */
-    do
-    {
-        mesh_api->processEvent();
-    } while(mesh_network_state != MESH_CONNECTED);
-
-    tr_info("NanoStack connected to network");
-
-    tr_info("Start TCPExample");
-    tcpExample = new TCPExample();
-    tcpExample->startEcho(HOST_ADDR, TEST_PORT, TEST_DATA, sizeof(TEST_DATA));
-
-    /* wait remote server response */
-    do {
-        mesh_api->processEvent();
-    } while(0 == tcpExample->isReceived());
-
-    tr_info("Received data from server:");
-    tr_info("Recv: %s", tcpExample->getResponse());
-    tr_info("Sent: %s", TEST_DATA);
-    delete tcpExample;
-    tcpExample = NULL;
-
-    mesh_api->disconnect();
-    do
-    {
-        mesh_api->processEvent();
-    } while(mesh_network_state != MESH_DISCONNECTED);
-
-    tr_info("All done!");
-
-    return 0;
 }
