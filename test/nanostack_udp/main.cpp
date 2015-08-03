@@ -14,12 +14,16 @@
  * limitations under the License.
  */
 #include "mbed.h"
+#include "minar/minar.h"
 #include <mbed-net-sockets/UDPSocket.h>
 #include <mbed-net-socket-abstract/socket_api.h>
 #include "test_env.h"
 #include "mbed-mesh-api/Mesh6LoWPAN_ND.h"
 #include "atmel-rf-driver/driverRFPhy.h"    // rf_device_register
 #include "UDPTest.h"
+
+
+
 // For tracing we need to define flag, have include and define group
 #define HAVE_DEBUG 1
 #include "ns_trace.h"
@@ -30,73 +34,67 @@
 
 static UDPTest *udpTest = NULL;
 static mesh_connection_status_t mesh_network_state = MESH_DISCONNECTED;
+static Mesh6LoWPAN_ND *mesh_api = NULL;
 
 /*
- * Callback from mesh network. Called when network state changes.
+ * Callback from a UDPExample appl indicating data is available.
+ */
+void data_available_callback() {
+    tr_info("data_available_callback()");
+    if (udpTest->isReceived() == true) {
+        //minar::Scheduler::cancelCallback(callback_handle);
+        tr_info("Response received from router:");
+        tr_info("Sent: %s", TEST_DATA);
+        tr_info("Recv: %s", udpTest->getResponse());
+        mesh_api->disconnect();
+    }
+}
+
+/*
+ * Callback from a mesh network. Called when network state changes.
  */
 void mesh_network_callback(mesh_connection_status_t mesh_state)
 {
     tr_info("mesh_network_callback() %d", mesh_state);
     mesh_network_state = mesh_state;
+    if (mesh_network_state == MESH_CONNECTED) {
+        char router_addr[50];
+        tr_info("Connected to mesh network!");
+        if (true == mesh_api->getRouterIpAddress(router_addr, sizeof(router_addr)))
+        {
+            tr_info("Echoing data to router IP address: %s", router_addr);
+            udpTest = new UDPTest(data_available_callback);
+            udpTest->startEcho(router_addr, ECHO_PORT, TEST_DATA);
+        } else {
+            tr_info("Failed to read own IP address");
+        }
+    } else if (mesh_network_state == MESH_DISCONNECTED) {
+        tr_info("Disconnected from mesh network!");
+        delete udpTest;
+        udpTest = NULL;
+        minar::Scheduler::stop();
+        tr_info("UDP echoing done!");
+        tr_info("End of program.");
+    } else {
+        tr_error("Networking error!");
+    }
 }
 
-int main() {
-    Mesh6LoWPAN_ND *mesh_api = Mesh6LoWPAN_ND::getInstance();
-    char router_addr[50];
+void app_start(int, char**) {
     int8_t status;
 
+    // init mesh api
+    mesh_api = Mesh6LoWPAN_ND::getInstance();
     status = mesh_api->init(rf_device_register(), mesh_network_callback);
-    if (status != MESH_ERROR_NONE)
-    {
-        tr_error("Mesh network initialization failed %d!", status);
-        return 1;
+    if (status != MESH_ERROR_NONE) {
+        tr_error("Failed to initialize mesh network, error %d!", status);
+        return;
     }
 
+    // connect to mesh network
     status = mesh_api->connect();
-
-    if (status != MESH_ERROR_NONE)
-    {
-        tr_error("Can't connect to mesh network!");
-        return 1;
+    if (status != MESH_ERROR_NONE) {
+        tr_error("Can't connect to mesh network! error=%d", status);
+        return;
     }
-
-    do
-    {
-        mesh_api->processEvent();
-    } while(mesh_network_state != MESH_CONNECTED);
-
-    tr_info("NanoStack connected to mesh network");
-
-    tr_info("Start UDPTest");
-
-    if (true == mesh_api->getRouterIpAddress(router_addr, sizeof(router_addr)))
-    {
-        tr_info("Echoing data to router IP address: %s", router_addr);
-        udpTest = new UDPTest();
-        udpTest->startEcho(router_addr, ECHO_PORT, TEST_DATA);
-    } else {
-        tr_info("Failed to read own IP address");
-        return -1;
-    }
-
-    /* wait network to be established */
-    do {
-        mesh_api->processEvent();
-    } while(0 == udpTest->isReceived());
-
-    tr_info("Response received from router:");
-    tr_info("Sent: %s", TEST_DATA);
-    tr_info("Recv: %s", udpTest->getResponse());
-    delete udpTest;
-    udpTest = NULL;
-
-    mesh_api->disconnect();
-    do
-    {
-        mesh_api->processEvent();
-    } while(mesh_network_state != MESH_DISCONNECTED);
-
-    tr_info("UDP echoing done!");
-
-    return 0;
 }

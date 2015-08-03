@@ -9,13 +9,13 @@
   "private": true,
   "dependencies": {
     "mbed-6lowpan": "~0.0.10",
-    "mbed-core": "~0.1.1",
+    "mbed-core": "~0.4.0",
     "mbed-net-socket-abstract": "~0.1.5",
     "mbed-client-libservice": "~3.0.1"
   },
   "testDependencies": {
-    "mbed-mesh-api": "~0.0.1",
-    "mbed-net-sockets": "~0.1.0",
+    "mbed-mesh-api": "~0.1.0",
+    "mbed-net-sockets": "~0.1.3",
     "atmel-rf-driver": "~0.0.13"
   },
   "targetDependencies": {}

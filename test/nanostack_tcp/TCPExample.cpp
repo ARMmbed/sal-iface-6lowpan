@@ -23,10 +23,11 @@
 #define TRACE_GROUP  "TCPExample"
 #include "TCPExample.h"
 
-TCPExample::TCPExample() :
+TCPExample::TCPExample(data_received_cb data_received_callback) :
         sock(SOCKET_STACK_NANOSTACK_IPV6)
 {
     _received = false;
+    data_recv_callback = data_received_callback;
     sock.open(SOCKET_AF_INET6);
 }
 
@@ -55,7 +56,7 @@ socket_error_t TCPExample::startEcho(const char *address, uint16_t port, const c
     }
     strncpy(_test_data, testData, _data_len);
     /* Start address resolving */
-    return sock.resolve(address, handler_t(this, &TCPExample::onDNS));
+    return sock.resolve(address, TCPStream::DNSHandler_t(this, &TCPExample::onDNS));
 }
 
 /**
@@ -86,33 +87,32 @@ char *TCPExample::getResponse()
  *
  * @param[in] err status of the address resolving
  */
-void TCPExample::onDNS(socket_error_t err)
+void TCPExample::onDNS(Socket *s, struct socket_addr sa, const char* domain)
 {
-    socket_event_t *e = sock.getEvent();
     tr_debug("onDNS()");
     /* Check that the result is a valid DNS response */
     /* Start connecting to the remote host */
-    _resolvedAddr.setAddr(&e->i.d.addr);
-    err = sock.connect(&_resolvedAddr, _port,
-            handler_t(this, &TCPExample::onConnect));
+    _resolvedAddr.setAddr(&sa);
+    socket_error_t  err = sock.connect(_resolvedAddr, _port, TCPStream::ConnectHandler_t(this, &TCPExample::onConnect));
 
     if (err != SOCKET_ERROR_NONE)
     {
         tr_error("Could not connect!");
     }
-
 }
 
 /**
  * On Connect handler. Called by underlying protocol stack.
  * Once connected, method will send request to the echoing server.
  */
-void TCPExample::onConnect(socket_error_t err) {
+void TCPExample::onConnect(TCPStream *s) {
     tr_debug("onConnect()");
     /* Send the request */
-    sock.setOnReadable(handler_t(this, &TCPExample::onReceive));
-    sock.setOnDisconnect(handler_t(this, &TCPExample::onDisconnect));
-    err = sock.send(_test_data, _data_len);
+    (void) s;
+
+    sock.setOnReadable(TCPStream::ReadableHandler_t(this, &TCPExample::onReceive));
+    sock.setOnDisconnect(TCPStream::DisconnectHandler_t(this, &TCPExample::onDisconnect));
+    socket_error_t err = sock.send(_test_data, _data_len);
     if (err != SOCKET_ERROR_NONE) {
         tr_error("Could not send data!");
     }
@@ -123,9 +123,9 @@ void TCPExample::onConnect(socket_error_t err) {
  *
  * @param[in] err status
  */
-void TCPExample::onDisconnect(socket_error_t err)
+void TCPExample::onDisconnect(TCPStream *s)
 {
-    err = sock.close();
+    socket_error_t err = sock.close();
     tr_info("onDisconnect(), err=%d", err);
 }
 
@@ -135,13 +135,14 @@ void TCPExample::onDisconnect(socket_error_t err)
  *
  * @param[in] err status of the data receiving
  */
-void TCPExample::onReceive(socket_error_t err) {
+void TCPExample::onReceive(Socket* s) {
     size_t nRx = sizeof(_rxBuf);
     tr_debug("onRecv()");
-    err = sock.recv(_rxBuf, &nRx);
+    socket_error_t err = sock.recv(_rxBuf, &nRx);
     tr_info("Received %d bytes", nRx);
     if (err != SOCKET_ERROR_NONE) {
         tr_error("Socket Error %d", err);
     }
     _received = true;
+    data_recv_callback();
 }
