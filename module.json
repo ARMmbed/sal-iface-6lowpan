@@ -4,13 +4,8 @@
   "description": "Socket and configuration API for mesh stack.",
   "keywords": [],
   "author": "Arto Kinnunen <arto.kinnunen@arm.com>",
-  "homepage": "http://git.oulu.arm.com:8080/gitweb?p=mbed-6lowpan-adaptor.git;a=summary",
-  "licenses": [
-    {
-      "url": "https://spdx.org/licenses/Apache-2.0",
-      "type": "Apache-2.0"
-    }
-  ],
+  "homepage": "https://github.com/ARMmbed/mbed-mesh-socket",
+  "license": "Apache-2.0",
   "private": true,
   "dependencies": {
     "mbed-6lowpan": "~0.0.10",
