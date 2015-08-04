@@ -90,6 +90,9 @@ char *TCPExample::getResponse()
 void TCPExample::onDNS(Socket *s, struct socket_addr sa, const char* domain)
 {
     tr_debug("onDNS()");
+
+    (void)s;
+    (void)domain;
     /* Check that the result is a valid DNS response */
     /* Start connecting to the remote host */
     _resolvedAddr.setAddr(&sa);
@@ -125,6 +128,7 @@ void TCPExample::onConnect(TCPStream *s) {
  */
 void TCPExample::onDisconnect(TCPStream *s)
 {
+    (void)s;
     socket_error_t err = sock.close();
     tr_info("onDisconnect(), err=%d", err);
 }
@@ -136,6 +140,7 @@ void TCPExample::onDisconnect(TCPStream *s)
  * @param[in] err status of the data receiving
  */
 void TCPExample::onReceive(Socket* s) {
+    (void)s;
     size_t nRx = sizeof(_rxBuf);
     tr_debug("onRecv()");
     socket_error_t err = sock.recv(_rxBuf, &nRx);
