@@ -1,6 +1,6 @@
 {
   "name": "mbed-6lowpan-adaptor",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Socket and configuration API for mesh stack.",
   "keywords": [],
   "author": "Arto Kinnunen <arto.kinnunen@arm.com>",
