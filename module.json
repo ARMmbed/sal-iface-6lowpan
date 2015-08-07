@@ -8,14 +8,14 @@
   "license": "Apache-2.0",
   "private": true,
   "dependencies": {
-    "mbed-6lowpan": "~0.0.10",
-    "mbed-core": "~0.4.0",
-    "mbed-net-socket-abstract": "~0.1.5",
+    "sal-stack-nanostack": "~0.0.10",
+    "mbed-drivers": "~0.4.0",
+    "sal": "~0.1.5",
     "mbed-client-libservice": "~3.0.1"
   },
   "testDependencies": {
     "mbed-mesh-api": "~0.1.0",
-    "mbed-net-sockets": "~0.2.0",
+    "sockets": "~0.2.0",
     "atmel-rf-driver": "~0.0.13"
   },
   "targetDependencies": {}
