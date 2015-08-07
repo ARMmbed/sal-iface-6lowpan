@@ -1,5 +1,5 @@
 {
-  "name": "mbed-6lowpan-adaptor",
+  "name": "sal-iface-6lowpan",
   "version": "0.2.2",
   "description": "Socket and configuration API for mesh stack.",
   "keywords": [],
