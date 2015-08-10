@@ -23,9 +23,9 @@
 #include "ns_address.h"
 #include "net_interface.h"
 #include "ip6string.h"  //stoip6
-#include "mbed-6lowpan-adaptor/ns_sal_callback.h"
-#include "mbed-6lowpan-adaptor/ns_sal_utils.h"
-#include "mbed-6lowpan-adaptor/ns_wrapper.h"
+#include "sal-iface-6lowpan/ns_sal_callback.h"
+#include "sal-iface-6lowpan/ns_sal_utils.h"
+#include "sal-iface-6lowpan/ns_wrapper.h"
 #include "common_functions.h"
 #include "nsdynmemLIB.h"
 // For tracing we need to define flag, have include and define group

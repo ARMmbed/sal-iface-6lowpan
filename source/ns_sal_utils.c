@@ -20,8 +20,8 @@
 
 #include <string.h> // memcpy
 #include "ns_address.h"
-#include <mbed-net-socket-abstract/socket_api.h>
-#include "mbed-6lowpan-adaptor/ns_sal_utils.h"
+#include "mbed-net-socket-abstract/socket_api.h"
+#include "sal-iface-6lowpan/ns_sal_utils.h"
 
 void convert_mbed_addr_to_ns(ns_address_t *ns_addr,
         const struct socket_addr *s_addr, uint16_t port)
