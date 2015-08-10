@@ -9,7 +9,7 @@
   "private": true,
   "dependencies": {
     "sal-stack-nanostack": "~0.0.10",
-    "mbed-drivers": "~0.4.0",
+    "mbed-drivers": "~0.5.0",
     "sal": "~0.1.5",
     "mbed-client-libservice": "~3.0.1"
   },
