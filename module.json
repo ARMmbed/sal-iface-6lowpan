@@ -1,6 +1,6 @@
 {
   "name": "sal-iface-6lowpan",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Socket and configuration API for mesh stack.",
   "keywords": [],
   "author": "Arto Kinnunen <arto.kinnunen@arm.com>",
