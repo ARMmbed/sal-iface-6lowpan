@@ -1,22 +1,22 @@
 {
   "name": "sal-iface-6lowpan",
   "version": "0.2.3",
-  "description": "Socket and configuration API for mesh stack.",
-  "keywords": [],
+  "description": "Socket abstraction for 6LoWPAN sockets.",
+  "keywords": [], 
   "author": "Arto Kinnunen <arto.kinnunen@arm.com>",
-  "homepage": "https://github.com/ARMmbed/mbed-mesh-socket",
+  "homepage": "https://github.com/ARMmbed/sal-iface-6lowpan",
   "license": "Apache-2.0",
   "private": true,
   "dependencies": {
-    "sal-stack-nanostack": "~0.0.10",
-    "mbed-drivers": "~0.5.0",
+    "sal-stack-nanostack": "~0.0.16",
+    "mbed-drivers": "~0.6.0",
     "sal": "~0.1.5",
     "mbed-client-libservice": "~3.0.1"
   },
   "testDependencies": {
-    "mbed-mesh-api": "~0.1.0",
+    "mbed-mesh-api": "~0.1.1",
     "sockets": "~0.2.0",
-    "atmel-rf-driver": "~0.0.13"
+    "atmel-rf-driver": "~0.0.18"
   },
   "targetDependencies": {}
 }
