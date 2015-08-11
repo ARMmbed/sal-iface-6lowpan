@@ -36,6 +36,7 @@
 #define MALLOC  ns_dyn_mem_alloc
 #define FREE    ns_dyn_mem_free
 
+//#define FUNC_ENTRY_TRACE_ENABLED
 #ifdef FUNC_ENTRY_TRACE_ENABLED
 #define FUNC_ENTRY_TRACE    tr_debug
 #else
@@ -555,7 +556,6 @@ uint8_t ns_sal_socket_is_bound(const struct socket *socket)
     return 0;
 }
 
-#ifdef NEW_SOCKET_API
 socket_error_t ns_sal_socket_get_local_addr(const struct socket *socket, struct socket_addr *addr)
 {
     if (socket == NULL || addr == NULL)
@@ -594,21 +594,6 @@ socket_error_t ns_sal_socket_get_remote_port(const struct socket *socket, uint16
     }
     return SOCKET_ERROR_UNIMPLEMENTED;
 }
-#else
-/* socket_api function, see socket_api.h for details */
-uint8_t ns_sal_socket_tx_is_busy(const struct socket *socket)
-{
-    // TODO: Find another way of checking if TX is busy
-    return (socket->status & SOCKET_STATUS_TX_BUSY);
-}
-
-/* socket_api function, see socket_api.h for details */
-uint8_t ns_sal_socket_rx_is_busy(const struct socket *socket)
-{
-    // TODO: Find another way of checking if RX is busy
-    return (socket->status & SOCKET_STATUS_RX_BUSY);
-}
-#endif
 
 /*
  * Socket API function pointer table.
@@ -619,9 +604,7 @@ uint8_t ns_sal_socket_rx_is_busy(const struct socket *socket)
 const struct socket_api nanostack_socket_api =
 {
     .stack = SOCKET_STACK_NANOSTACK_IPV6,
-#ifdef NEW_SOCKET_API
     .version = SOCKET_ABSTRACTION_LAYER_VERSION,
-#endif
     .init = ns_sal_init,
     .create = ns_sal_socket_create,
     .destroy = ns_sal_socket_destroy,
@@ -635,22 +618,15 @@ const struct socket_api nanostack_socket_api =
     .start_listen = ns_sal_start_listen,
     .stop_listen = ns_sal_stop_listen,
     .accept = ns_sal_socket_accept,
-#ifdef NEW_SOCKET_API
     .reject = ns_sal_socket_reject,
-#endif
     .send = ns_sal_socket_send,
     .send_to = ns_sal_socket_send_to,
     .recv = ns_sal_socket_recv,
     .recv_from = ns_sal_socket_recv_from,
     .is_connected = ns_sal_socket_is_connected,
     .is_bound = ns_sal_socket_is_bound,
-#ifdef NEW_SOCKET_API
     .get_local_addr = ns_sal_socket_get_local_addr,
     .get_remote_addr = ns_sal_socket_get_remote_addr,
     .get_local_port = ns_sal_socket_get_local_port,
     .get_remote_port = ns_sal_socket_get_remote_port
-#else
-    .tx_busy = ns_sal_socket_tx_is_busy,
-    .rx_busy = ns_sal_socket_rx_is_busy
-#endif
 };
