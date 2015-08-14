@@ -180,8 +180,7 @@ int8_t ns_wrapper_socket_bind(sock_data_s *sock_data_ptr, ns_address_t *address)
 int8_t ns_wrapper_socket_close(sock_data_s *sock_data_ptr)
 {
     FUNC_ENTRY_TRACE("ns_wrapper_socket_close() sock=%d", sock_data_ptr->socket_id);
-    int8_t error = socket_close(sock_data_ptr->socket_id, NULL,
-            sock_data_ptr->security_session_id);
+    int8_t error = socket_close(sock_data_ptr->socket_id, NULL);
     return error;
 }
 
