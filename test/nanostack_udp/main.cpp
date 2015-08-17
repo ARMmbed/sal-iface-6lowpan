@@ -14,15 +14,13 @@
  * limitations under the License.
  */
 #include "mbed.h"
-#include "minar/minar.h"
 #include <mbed-net-sockets/UDPSocket.h>
 #include <mbed-net-socket-abstract/socket_api.h>
 #include "test_env.h"
 #include "mbed-mesh-api/Mesh6LoWPAN_ND.h"
+#include "mbed-mesh-api/MeshInterfaceFactory.h"
 #include "atmel-rf-driver/driverRFPhy.h"    // rf_device_register
 #include "UDPTest.h"
-
-
 
 // For tracing we need to define flag, have include and define group
 #define HAVE_DEBUG 1
@@ -42,7 +40,6 @@ static Mesh6LoWPAN_ND *mesh_api = NULL;
 void data_available_callback() {
     tr_info("data_available_callback()");
     if (udpTest->isReceived() == true) {
-        //minar::Scheduler::cancelCallback(callback_handle);
         tr_info("Response received from router:");
         tr_info("Sent: %s", TEST_DATA);
         tr_info("Recv: %s", udpTest->getResponse());
@@ -72,9 +69,7 @@ void mesh_network_callback(mesh_connection_status_t mesh_state)
         tr_info("Disconnected from mesh network!");
         delete udpTest;
         udpTest = NULL;
-        minar::Scheduler::stop();
-        tr_info("UDP echoing done!");
-        tr_info("End of program.");
+        tr_info("UDP echoing done!, end of program!");
     } else {
         tr_error("Networking error!");
     }
@@ -84,7 +79,7 @@ void app_start(int, char**) {
     int8_t status;
 
     // init mesh api
-    mesh_api = Mesh6LoWPAN_ND::getInstance();
+    mesh_api = (Mesh6LoWPAN_ND*)MeshInterfaceFactory::createInterface(MESH_TYPE_6LOWPAN_ND);
     status = mesh_api->init(rf_device_register(), mesh_network_callback);
     if (status != MESH_ERROR_NONE) {
         tr_error("Failed to initialize mesh network, error %d!", status);

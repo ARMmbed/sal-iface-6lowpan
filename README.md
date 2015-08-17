@@ -1,5 +1,5 @@
-# mbed mesh socket
-The mbed mesh socket is a socket adaptation layer for a mesh socket. This module 
+# Socket adaptation layer for mesh socket
+This module is a socket adaptation layer for a mesh socket. This module 
 enables the usage of mesh sockets via [mbed C++ socket API](https://github.com/ARMmbed/mbed-net-sockets).
 
 ## Usage notes
@@ -17,10 +17,16 @@ This module is under construction and therefore, there are some limitations:
 * `socket_bind()` binds port only, address must be set to `IN_ANY`.
 * There is no API to set the socket options (`set_sock_opt`).
 * TCP socket is not working properly and it should not be used
-    * `socket_accept`  is not implemented
-    * `socket_start_listen` is not implemented
-    * `socket_stop_listen` is not implemented
-    * `is_connected`, `is_bound`, `tx_busy` and `rx_busy` are not implemented
+* Following Socket API methods are not implemented:
+    * `socket_accept`
+    * `socket_start_listen`
+    * `socket_stop_listen`
+    * `is_connected`
+    * `is_bound`
+    * `get_local_addr`
+    * `get_remote_addr`
+    * `get_local_port`
+    * `get_remote_port`
 
 ## Getting started
 The module contains the following example applications in the `test` folder:
