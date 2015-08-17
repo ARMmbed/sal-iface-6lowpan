@@ -15,11 +15,11 @@
  */
 
 #include "mbed.h"
-#include "minar/minar.h"
 #include <mbed-net-sockets/UDPSocket.h>
 #include <mbed-net-socket-abstract/socket_api.h>
 #include <mbed-net-socket-abstract/test/ctest_env.h>
 #include "mbed-mesh-api/Mesh6LoWPAN_ND.h"
+#include "mbed-mesh-api/MeshInterfaceFactory.h"
 #include "atmel-rf-driver/driverRFPhy.h"    // rf_device_register
 #include "test_cases.h"
 #include "mbed/test_env.h"
@@ -48,8 +48,11 @@ int runTests(void);
 
 void mesh_interface_run()
 {
+    // call nanostack eventloop directly to get tests implemented in one function
+    // (nanostack is event based stack)
+    extern bool event_dispatch_cycle();
+    event_dispatch_cycle();
 }
-
 
 /*
  * Callback from mesh network. Called when network state changes.
@@ -64,8 +67,8 @@ void mesh_network_callback(mesh_connection_status_t mesh_state)
         mesh_api->disconnect();
     } else if (mesh_network_state == MESH_DISCONNECTED)
     {
-        minar::Scheduler::stop();
         tr_info("All tests done!");
+        MBED_HOSTTEST_RESULT(tests_pass);
     }
 }
 
@@ -86,7 +89,7 @@ void enable_detailed_tracing(bool high)
 void app_start(int, char**) {
     int8_t err;
 
-    mesh_api = Mesh6LoWPAN_ND::getInstance();
+    mesh_api = (Mesh6LoWPAN_ND*)MeshInterfaceFactory::createInterface(MESH_TYPE_6LOWPAN_ND);
     err = mesh_api->init(rf_device_register(), mesh_network_callback);
 
     if (!TEST_EQ(err, MESH_ERROR_NONE)) {
@@ -190,6 +193,5 @@ int runTests(void) {
         tests_pass = tests_pass && rc;
     } while (0);
 
-    MBED_HOSTTEST_RESULT(tests_pass);
     return !tests_pass;
 }

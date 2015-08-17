@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 #include "mbed.h"
-#include "minar/minar.h"
 #include <mbed-net-socket-abstract/socket_api.h>
 #include <mbed-net-sockets/TCPStream.h>
 #include "atmel-rf-driver/driverRFPhy.h"    // rf_device_register
 #include "mbed-mesh-api/Mesh6LoWPAN_ND.h"
+#include "mbed-mesh-api/MeshInterfaceFactory.h"
 // For tracing we need to define flag, have include and define group
 #define HAVE_DEBUG 1
 #include "ns_trace.h"
@@ -61,9 +61,7 @@ void mesh_network_callback(mesh_connection_status_t mesh_state)
     } else if (mesh_network_state == MESH_DISCONNECTED) {
         delete tcpExample;
         tcpExample = NULL;
-        minar::Scheduler::stop();
-        tr_info("TCP echoing done!");
-        tr_info("End of program.");
+        tr_info("TCP echoing done!, end of program!");
     } else {
         tr_error("bad network state");
     }
@@ -73,7 +71,7 @@ void mesh_network_callback(mesh_connection_status_t mesh_state)
 void app_start(int, char**) {
     int8_t status;
 
-    mesh_api = Mesh6LoWPAN_ND::getInstance();
+    mesh_api = (Mesh6LoWPAN_ND*)MeshInterfaceFactory::createInterface(MESH_TYPE_6LOWPAN_ND);
     status = mesh_api->init(rf_device_register(), mesh_network_callback);
     if (status != MESH_ERROR_NONE) {
         tr_error("Mesh network initialization failed %d!", status);
