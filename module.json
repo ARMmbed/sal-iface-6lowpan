@@ -8,7 +8,7 @@
   "license": "Apache-2.0",
   "private": true,
   "dependencies": {
-    "sal-stack-nanostack": "~0.0.16",
+    "sal-stack-nanostack": "^2.1.0",
     "mbed-drivers": "~0.6.0",
     "sal": "~0.2.0",
     "nanostack-libservice": "~3.0.1"
