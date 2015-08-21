@@ -25,7 +25,7 @@
 #define TRACE_GROUP  "UDPTtest"
 
 UDPTest::UDPTest(data_received_cb data_recv_cb) :
-        sock(SOCKET_STACK_NANOSTACK_IPV6)
+    sock(SOCKET_STACK_NANOSTACK_IPV6)
 {
     data_recv_callback = data_recv_cb;
     sock.open(SOCKET_AF_INET6);
@@ -50,8 +50,7 @@ void UDPTest::startEcho(const char *address, uint16_t udpPort, const char *testD
     received = false;
     _udpPort = udpPort;
     _data_len = strlen(testData);
-    if (_data_len > BUF_LEN)
-    {
+    if (_data_len > BUF_LEN) {
         tr_error("too long data");
     }
     strncpy(_test_data, testData, _data_len);
@@ -74,8 +73,7 @@ bool UDPTest::isReceived()
  */
 char *UDPTest::getResponse()
 {
-    if (isReceived())
-    {
+    if (isReceived()) {
         _rxBuf[_data_len] = 0;
         return _rxBuf;
     }
@@ -87,7 +85,7 @@ char *UDPTest::getResponse()
  * The DNS Response Handler. Called by the underlaying protocol stack
  *
  */
-void UDPTest::onDNS(Socket *s, struct socket_addr sa, const char* domain)
+void UDPTest::onDNS(Socket *s, struct socket_addr sa, const char *domain)
 {
     (void) domain;
     (void) s;
@@ -99,8 +97,7 @@ void UDPTest::onDNS(Socket *s, struct socket_addr sa, const char* domain)
     /* Send packet to the remote host */
     tr_info("Sending %d bytes of UDP data...", _data_len);
     socket_error_t err = sock.send_to(_test_data, _data_len, &_resolvedAddr, _udpPort);
-    if (err != SOCKET_ERROR_NONE)
-    {
+    if (err != SOCKET_ERROR_NONE) {
         tr_error("Socket Error %d", err);
     }
 }
@@ -119,12 +116,9 @@ void UDPTest::onRecvFrom(Socket *s)
     /* Receive some bytes */
     socket_error_t err = sock.recv_from(_rxBuf, &nRx, &_resolvedAddr, &_udpPort);
     /* A failure on recv is a fatal error in this example */
-    if (err != SOCKET_ERROR_NONE)
-    {
+    if (err != SOCKET_ERROR_NONE) {
         tr_error("Socket Error %d", err);
-    }
-    else
-    {
+    } else {
         _rxBuf[nRx] = 0;
         tr_info("Receive port %d", _udpPort);
         tr_info("Receive length %d", nRx);
@@ -140,7 +134,8 @@ void UDPTest::onRecvFrom(Socket *s)
  * Called by the underlying protocol stack
  *
  */
-void UDPTest::onRecv(Socket *s) {
+void UDPTest::onRecv(Socket *s)
+{
     (void)s;
     size_t nRx = sizeof(_rxBuf);
     tr_debug("onRecv()");
@@ -148,9 +143,7 @@ void UDPTest::onRecv(Socket *s) {
     tr_info("Received %d bytes", nRx);
     if (err != SOCKET_ERROR_NONE) {
         tr_error("Socket Error %d", err);
-    }
-    else
-    {
+    } else {
         _rxBuf[nRx] = 0;
         tr_info("Received data:\n\r%s", _rxBuf);
     }

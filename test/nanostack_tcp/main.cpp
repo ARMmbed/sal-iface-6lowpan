@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #include "mbed.h"
 #include <mbed-net-socket-abstract/socket_api.h>
 #include <mbed-net-sockets/TCPStream.h>
@@ -28,7 +29,7 @@
 
 // Remote server port and address
 #define TEST_PORT   50000
-#define HOST_ADDR   "FD00:FF1:CE0B:A5E1:1068:AF13:9B61:D557"
+#define HOST_ADDR   "FD00:FF1:CE0B:A5E0:21B:38FF:FE90:ABB1"
 
 // data to be sent and echoed
 #define TEST_DATA   "Example TCP data sent to server that echoes it back!"
@@ -37,7 +38,11 @@ static TCPExample *tcpExample = NULL;
 static uint8_t mesh_network_state = MESH_DISCONNECTED;
 static Mesh6LoWPAN_ND *mesh_api = NULL;
 
-void data_available_callback() {
+/*
+ * Callback from TCPExample class, called when data is available
+ */
+void data_available_callback()
+{
     tr_info("data_available_callback()");
     if (tcpExample->isReceived() == true) {
         tr_info("Received data from server:");
@@ -49,13 +54,15 @@ void data_available_callback() {
     }
 }
 
+/*
+ * Callback from mesh network, called when network state changes
+ */
 void mesh_network_callback(mesh_connection_status_t mesh_state)
 {
     tr_info("mesh_network_callback() %d", mesh_state);
     mesh_network_state = mesh_state;
     if (mesh_network_state == MESH_CONNECTED) {
         tr_info("Connected to mesh network!");
-
         tcpExample = new TCPExample(data_available_callback);
         tcpExample->startEcho(HOST_ADDR, TEST_PORT, TEST_DATA, sizeof(TEST_DATA));
     } else if (mesh_network_state == MESH_DISCONNECTED) {
@@ -65,13 +72,13 @@ void mesh_network_callback(mesh_connection_status_t mesh_state)
     } else {
         tr_error("bad network state");
     }
-
 }
 
-void app_start(int, char**) {
+void app_start(int, char **)
+{
     int8_t status;
 
-    mesh_api = (Mesh6LoWPAN_ND*)MeshInterfaceFactory::createInterface(MESH_TYPE_6LOWPAN_ND);
+    mesh_api = (Mesh6LoWPAN_ND *)MeshInterfaceFactory::createInterface(MESH_TYPE_6LOWPAN_ND);
     status = mesh_api->init(rf_device_register(), mesh_network_callback);
     if (status != MESH_ERROR_NONE) {
         tr_error("Mesh network initialization failed %d!", status);
@@ -84,6 +91,5 @@ void app_start(int, char**) {
         return;
     }
 
-    uint8_t trace_conf = TRACE_MODE_COLOR|TRACE_CARRIAGE_RETURN|TRACE_ACTIVE_LEVEL_ALL;
-    set_trace_config(trace_conf);
+    set_trace_config(TRACE_MODE_COLOR | TRACE_CARRIAGE_RETURN | TRACE_ACTIVE_LEVEL_ALL);
 }

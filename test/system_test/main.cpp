@@ -29,24 +29,24 @@
 #define TRACE_GROUP  "main"     // for traces
 
 // main IPv6 address
-// Note! Replies are coming from temporary address unless feature disabled from server side.
-#define TEST_SERVER         "FD00:FF1:CE0B:A5E1:1068:AF13:9B61:D557"
+// Note! Replies are coming from temporary address unless feature is disabled from server side.
+#define TEST_SERVER         "FD00:FF1:CE0B:A5E0:21B:38FF:FE90:ABB1"
 #define TEST_PORT           50001
-#define TEST_NO_SRV_PORT    40000   // No server on this port
-#define CONNECT_PORT        50000
-#define MAX_NUM_OF_SOCKETS  16      // NanoStack supports max 16 sockets, 2 are already reserved by stack..
+#define TEST_NO_SRV_PORT    40000   // No server listening on this port
+#define CONNECT_PORT        50000   // TCP server listening on this port
+#define MAX_NUM_OF_SOCKETS  16      // NanoStack supports max 16 sockets, 2 are already reserved by stack.
 #define STRESS_TESTS_ENABLE         // Long lasting stress tests enabled
-#define STRESS_TESTS_LOOP_COUNT 100  // Stress test loop count
+#define STRESS_TESTS_LOOP_COUNT 100 // Stress test loop count
 
 #define NS_MAX_UDP_PACKET_SIZE 2047
 
-static uint8_t mesh_network_state = MESH_DISCONNECTED;
+static mesh_connection_status_t mesh_network_state = MESH_DISCONNECTED;
 static Mesh6LoWPAN_ND *mesh_api = NULL;
 static int tests_pass = 1;
 
 int runTests(void);
 
-void mesh_interface_run()
+void mesh_interface_run(void)
 {
     // call nanostack eventloop directly to get tests implemented in one function
     // (nanostack is event based stack)
@@ -61,12 +61,11 @@ void mesh_network_callback(mesh_connection_status_t mesh_state)
 {
     tr_info("mesh_network_callback() %d", mesh_state);
     mesh_network_state = mesh_state;
-    if(mesh_network_state == MESH_CONNECTED) {
+    if (mesh_network_state == MESH_CONNECTED) {
         tr_info("Connected to mesh network!");
         runTests();
         mesh_api->disconnect();
-    } else if (mesh_network_state == MESH_DISCONNECTED)
-    {
+    } else if (mesh_network_state == MESH_DISCONNECTED) {
         tr_info("All tests done!");
         MBED_HOSTTEST_RESULT(tests_pass);
     }
@@ -74,22 +73,20 @@ void mesh_network_callback(mesh_connection_status_t mesh_state)
 
 void enable_detailed_tracing(bool high)
 {
-    uint8_t conf = TRACE_MODE_COLOR|TRACE_CARRIAGE_RETURN;
-    if (high)
-    {
+    uint8_t conf = TRACE_MODE_COLOR | TRACE_CARRIAGE_RETURN;
+    if (high) {
         conf |= TRACE_ACTIVE_LEVEL_ALL;
-    }
-    else
-    {
+    } else {
         conf |= TRACE_ACTIVE_LEVEL_INFO;
     }
     set_trace_config(conf);
 }
 
-void app_start(int, char**) {
+void app_start(int, char **)
+{
     int8_t err;
 
-    mesh_api = (Mesh6LoWPAN_ND*)MeshInterfaceFactory::createInterface(MESH_TYPE_6LOWPAN_ND);
+    mesh_api = (Mesh6LoWPAN_ND *)MeshInterfaceFactory::createInterface(MESH_TYPE_6LOWPAN_ND);
     err = mesh_api->init(rf_device_register(), mesh_network_callback);
 
     if (!TEST_EQ(err, MESH_ERROR_NONE)) {
@@ -103,7 +100,8 @@ void app_start(int, char**) {
     enable_detailed_tracing(true);
 }
 
-int runTests(void) {
+int runTests(void)
+{
     MBED_HOSTTEST_TIMEOUT(5);
     MBED_HOSTTEST_SELECT(default);
     MBED_HOSTTEST_DESCRIPTION(NanoStack Socket Abstraction Layer tests);
@@ -112,8 +110,7 @@ int runTests(void) {
     int rc;
     tests_pass = 1;
 
-    do
-    {
+    do {
         rc = socket_api_test_create_destroy(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET4);
         tests_pass = tests_pass && rc;
 
@@ -128,28 +125,28 @@ int runTests(void) {
         tests_pass = tests_pass && rc;
 
         rc = ns_udp_test_buffered_recv_from(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_DGRAM,
-                TEST_SERVER, TEST_PORT, mesh_interface_run);
+                                            TEST_SERVER, TEST_PORT, mesh_interface_run);
         tests_pass = tests_pass && rc;
 
         rc = ns_socket_test_bind(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_DGRAM,
-                TEST_SERVER, TEST_PORT, mesh_interface_run);
+                                 TEST_SERVER, TEST_PORT, mesh_interface_run);
         tests_pass = tests_pass && rc;
 
 #if 0
         // Requires TCP test server... and TCP sockets doesn't work properly, skip test case
         rc = ns_socket_test_bind(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_STREAM,
-                TEST_SERVER, TEST_PORT, mesh_interface_run);
+                                 TEST_SERVER, TEST_PORT, mesh_interface_run);
         tests_pass = tests_pass && rc;
 #endif
 #if 0
         // TCP connect doesn't work yet, therefore can't be run
         rc = ns_socket_test_connect_failure(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_STREAM,
-                TEST_SERVER, TEST_NO_SRV_PORT, mesh_interface_run);
+                                            TEST_SERVER, TEST_NO_SRV_PORT, mesh_interface_run);
         tests_pass = tests_pass && rc;
 #endif
 
         rc = ns_socket_test_max_num_of_sockets(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_DGRAM,
-                TEST_SERVER, TEST_PORT, mesh_interface_run, MAX_NUM_OF_SOCKETS);
+                                               TEST_SERVER, TEST_PORT, mesh_interface_run, MAX_NUM_OF_SOCKETS);
         tests_pass = tests_pass && rc;
 
 #ifdef STRESS_TESTS_ENABLE
@@ -158,15 +155,14 @@ int runTests(void) {
          */
         enable_detailed_tracing(false);
         int i;
-        for (i = 0; i < STRESS_TESTS_LOOP_COUNT; i++)
-        {
+        for (i = 0; i < STRESS_TESTS_LOOP_COUNT; i++) {
             rc = ns_socket_test_max_num_of_sockets(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_DGRAM,
-                    TEST_SERVER, TEST_PORT, mesh_interface_run, MAX_NUM_OF_SOCKETS);
+                                                   TEST_SERVER, TEST_PORT, mesh_interface_run, MAX_NUM_OF_SOCKETS);
             tests_pass = tests_pass && rc;
         }
 
         rc = ns_socket_test_udp_traffic(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_DGRAM,
-                TEST_SERVER, TEST_PORT, mesh_interface_run, STRESS_TESTS_LOOP_COUNT, 10);
+                                        TEST_SERVER, TEST_PORT, mesh_interface_run, STRESS_TESTS_LOOP_COUNT, 10);
         tests_pass = tests_pass && rc;
         enable_detailed_tracing(true);
 #endif /* STRESS_TESTS_ENABLE */

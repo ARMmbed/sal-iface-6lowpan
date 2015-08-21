@@ -38,8 +38,7 @@ typedef void (*func_cb_t)(void);
 /*
  * Socket data attached to mbed socket structure.
  */
-typedef struct sock_data_
-{
+typedef struct sock_data_ {
     int8_t socket_id;           /*!< allocated socket ID */
     int8_t security_session_id; /*!< Not used yet */
 } sock_data_s;
@@ -51,7 +50,7 @@ typedef struct sock_data_
 /*
  * \brief Open NanoStack socket
  */
-sock_data_s* ns_wrapper_socket_open(int8_t socket_type, int8_t identifier, void *context);
+sock_data_s *ns_wrapper_socket_open(int8_t socket_type, int8_t identifier, void *context);
 
 /*
  * \brief Bind NanoStack socket

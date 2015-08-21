@@ -27,9 +27,9 @@ typedef void (*run_func_t)(void);
  * */
 int socket_api_test_create_destroy(socket_stack_t stack, socket_address_family_t disable_family);
 int socket_api_test_socket_str2addr(socket_stack_t stack, socket_address_family_t disable_family);
-int socket_api_test_connect_close(socket_stack_t stack, socket_address_family_t af, socket_proto_family_t disable_family, const char* server, uint16_t port, run_func_t run_cb);
+int socket_api_test_connect_close(socket_stack_t stack, socket_address_family_t af, socket_proto_family_t disable_family, const char *server, uint16_t port, run_func_t run_cb);
 int socket_api_test_echo_client_connected(socket_stack_t stack, socket_address_family_t af, socket_proto_family_t pf, bool connect,
-        const char* server, uint16_t port, run_func_t run_cb, uint16_t max_packet_size);
+        const char *server, uint16_t port, run_func_t run_cb, uint16_t max_packet_size);
 
 /* NanoStack specific tests */
 /*
@@ -39,7 +39,7 @@ int socket_api_test_echo_client_connected(socket_stack_t stack, socket_address_f
  *  -final recv_from returns error status SOCKET_ERROR_WOULD_BLOCK as no datagrams left in buffer
  */
 int ns_udp_test_buffered_recv_from(socket_stack_t stack, socket_address_family_t af, socket_proto_family_t pf,
-        const char* server, uint16_t port, run_func_t run_cb);
+                                   const char *server, uint16_t port, run_func_t run_cb);
 
 /*
  * \brief Test socket binding.
@@ -48,14 +48,14 @@ int ns_udp_test_buffered_recv_from(socket_stack_t stack, socket_address_family_t
  * -->second one is bound to predefined port that receives response from the test server.
  */
 int ns_socket_test_bind(socket_stack_t stack, socket_address_family_t af, socket_proto_family_t pf,
-        const char* server, uint16_t port, run_func_t run_cb);
+                        const char *server, uint16_t port, run_func_t run_cb);
 
 /*
  * \brief Test socket connect failure.
  * Connection attempt is made to port that doesn't have listening socket.
  */
 int ns_socket_test_connect_failure(socket_stack_t stack, socket_address_family_t af, socket_proto_family_t pf,
-        const char* server, uint16_t port, run_func_t run_cb);
+                                   const char *server, uint16_t port, run_func_t run_cb);
 
 /*
  * \brief Test maximum number of sockets.
@@ -64,7 +64,7 @@ int ns_socket_test_connect_failure(socket_stack_t stack, socket_address_family_t
  * -Close sockets
  */
 int ns_socket_test_max_num_of_sockets(socket_stack_t stack, socket_address_family_t af, socket_proto_family_t pf,
-        const char* server, uint16_t port, run_func_t run_cb, uint8_t max_num_of_sockets);
+                                      const char *server, uint16_t port, run_func_t run_cb, uint8_t max_num_of_sockets);
 
 /*
  * \brief Test UDP Socket data sending and receiving.
@@ -75,7 +75,7 @@ int ns_socket_test_max_num_of_sockets(socket_stack_t stack, socket_address_famil
  * -Destroy all sockets
  */
 int ns_socket_test_udp_traffic(socket_stack_t stack, socket_address_family_t af, socket_proto_family_t pf,
-        const char* server, uint16_t port, run_func_t run_cb, uint16_t max_loops, uint8_t max_num_of_sockets);
+                               const char *server, uint16_t port, run_func_t run_cb, uint16_t max_loops, uint8_t max_num_of_sockets);
 
 /*
  * \brief Test recv_from API with error values.
