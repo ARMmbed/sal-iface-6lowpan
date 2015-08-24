@@ -67,6 +67,8 @@
 #define CMD_REPLY_DIFF_PORT_LEN (sizeof(CMD_REPLY_DIFF_PORT)-1)
 #define CMD_REPLY_DIFF_LOCAL_PORT 60000
 
+#define CMD_REPLY_BOUND_PORT "#REPLY_BOUND_PORT:"
+
 struct IPv4Entry {
     const char *test;
     uint32_t expect;
@@ -225,6 +227,8 @@ static struct socket *ConnectCloseSock;
 volatile int eventid;
 volatile int closed;
 volatile int connected;
+volatile int connect_rx_done;
+volatile int connect_tx_done;
 static void connect_close_handler(void)
 {
     TEST_DBG("connect_close_handler %d\r\n", ConnectCloseSock->event->event);
@@ -234,6 +238,12 @@ static void connect_close_handler(void)
             break;
         case SOCKET_EVENT_CONNECT:
             connected = 1;
+            break;
+        case SOCKET_EVENT_RX_DONE:
+            connect_rx_done = true;
+            break;
+        case SOCKET_EVENT_TX_DONE:
+            connect_tx_done = true;
             break;
         default:
             break;
@@ -339,6 +349,117 @@ int socket_api_test_connect_close(socket_stack_t stack, socket_address_family_t 
         err = api->destroy(&s);
         TEST_EQ(err, SOCKET_ERROR_NONE);
     }
+    TEST_RETURN();
+}
+
+int socket_api_test_bind_connect_close(socket_stack_t stack, const char *server, uint16_t port, run_func_t run_cb, uint16_t source_port)
+{
+    struct socket s;
+    socket_error_t err;
+    const struct socket_api *api = socket_get_api(stack);
+    struct socket_addr addr;
+    struct socket_addr in_any_addr;
+    uint8_t data[50];
+    size_t len;
+
+    ConnectCloseSock = &s;
+    TEST_CLEAR();
+    if (!TEST_NEQ(api, NULL)) {
+        // Test cannot continue without API.
+        TEST_RETURN();
+    }
+    err = api->init();
+    if (!TEST_EQ(err, SOCKET_ERROR_NONE)) {
+        TEST_RETURN();
+    }
+
+    // Zero the implementation
+    s.impl = NULL;
+    err = api->create(&s, SOCKET_AF_INET6, SOCKET_STREAM, &connect_close_handler);
+    // catch expected failing cases
+    TEST_EQ(err, SOCKET_ERROR_NONE);
+    if (!TEST_NEQ(s.impl, NULL)) {
+        TEST_RETURN();
+    }
+    // Tell the host launch a server
+    TEST_PRINT(">>> ES,%d\r\n", SOCKET_STREAM);
+
+    // bind to port
+    memset(&in_any_addr, 0 , sizeof(in_any_addr));
+    err = api->bind(&s, &in_any_addr, source_port);
+    TEST_EQ(err, SOCKET_ERROR_NONE);
+
+    // connect to a remote host
+    err = api->str2addr(&s, &addr, server);
+    TEST_EQ(err, SOCKET_ERROR_NONE);
+
+    timedout = 0;
+    connected = 0;
+    mbed::Timeout to;
+    to.attach(onTimeout, 4 * SOCKET_TEST_TIMEOUT);
+    err = api->connect(&s, &addr, port);
+    TEST_EQ(err, SOCKET_ERROR_NONE);
+    while (!connected && !timedout) {
+        run_cb();
+    }
+    to.detach();
+    TEST_EQ(timedout, 0);
+
+    connect_tx_done = false;
+    connect_rx_done = false;
+
+    // send a command
+    to.attach(onTimeout, 2 * SOCKET_TEST_TIMEOUT);
+    err = api->send(&s, CMD_REPLY_BOUND_PORT, sizeof(CMD_REPLY_BOUND_PORT));
+    if (!TEST_EQ(err, SOCKET_ERROR_NONE)) {
+        TEST_PRINT("Failed to send command %s\r\n", CMD_REPLY_BOUND_PORT);
+    } else {
+        while (!timedout && !connect_tx_done) {
+            run_cb();
+        }
+    }
+    to.detach();
+    TEST_EQ(timedout, 0);
+
+    // read port received
+    to.attach(onTimeout, 2 * SOCKET_TEST_TIMEOUT);
+    while (!timedout && !connect_rx_done) {
+        run_cb();
+    }
+    to.detach();
+    TEST_EQ(timedout, 0);
+    err = api->recv(&s, (void *)(&data), &len);
+    TEST_EQ(err, SOCKET_ERROR_NONE);
+
+    // verify that source port is returned
+    char str[10];
+    sprintf(str, "%d", source_port);
+    int res = memcmp(str, data, strlen(str));
+    TEST_EQ(res, 0);
+
+    // close the connection
+    timedout = 0;
+    closed = 0;
+    to.attach(onTimeout, 4 * SOCKET_TEST_TIMEOUT);
+    err = api->close(&s);
+    TEST_EQ(err, SOCKET_ERROR_NONE);
+    if (err != SOCKET_ERROR_NONE) {
+        printf("err = %d\r\n", err);
+    }
+
+    while (!closed && !timedout) {
+        run_cb();
+    }
+
+    to.detach();
+    TEST_EQ(timedout, 0);
+    // Tell the host to kill the server
+    TEST_PRINT(">>> KILL ES\r\n");
+
+    // Destroy the socket
+    err = api->destroy(&s);
+    TEST_EQ(err, SOCKET_ERROR_NONE);
+
     TEST_RETURN();
 }
 
@@ -671,7 +792,7 @@ static void server_cb(void)
     }
 }
 
-int socket_api_test_echo_server_stream(socket_stack_t stack, socket_address_family_t af, const char *local_addr, uint16_t port)
+int socket_api_test_echo_server_stream(socket_stack_t stack, socket_address_family_t af, const char *local_addr, uint16_t port, run_func_t run_cb)
 {
     struct socket s;
     struct socket cs;
@@ -706,17 +827,9 @@ int socket_api_test_echo_server_stream(socket_stack_t stack, socket_address_fami
     if (!TEST_EQ(err, SOCKET_ERROR_NONE)) {
         TEST_RETURN();
     }
-
-    // start the TCP timer
-    uint32_t interval_ms = api->periodic_interval(&s);
-    TEST_NEQ(interval_ms, 0);
-    uint32_t interval_us = interval_ms * 1000;
-    socket_api_handler_t periodic_task = api->periodic_task(&s);
-    if (TEST_NEQ(periodic_task, NULL)) {
-        ticker.attach_us(periodic_task, interval_us);
-    }
-
-    err = api->bind(&s, &addr, port);
+    struct socket_addr in_any_addr;
+    memset(&in_any_addr, 0, sizeof(in_any_addr));
+    err = api->bind(&s, &in_any_addr, port);
     if (!TEST_EQ(err, SOCKET_ERROR_NONE)) {
         TEST_RETURN();
     }
@@ -743,7 +856,7 @@ int socket_api_test_echo_server_stream(socket_stack_t stack, socket_address_fami
         client_rx_done = false;
         // Wait for a connect event
         while (!timedout && !incoming) {
-            __WFI();
+            run_cb();
         }
         if (TEST_EQ(timedout, 0)) {
             to.detach();
@@ -773,7 +886,7 @@ int socket_api_test_echo_server_stream(socket_stack_t stack, socket_address_fami
         while (client_event.event != SOCKET_EVENT_ERROR && client_event.event != SOCKET_EVENT_DISCONNECT) {
             // Wait for a read event
             while (!client_event_done && !client_rx_done && !timedout) {
-                __WFI();
+                run_cb();
             }
             if (!TEST_EQ(client_event_done, false)) {
                 client_event_done = false;

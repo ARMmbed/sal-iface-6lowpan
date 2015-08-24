@@ -17,6 +17,7 @@ This module is under construction and therefore, there are some limitations:
 * `socket_bind()` binds port only, address must be set to `IN_ANY`.
 * There is no API to set the socket options (`set_sock_opt`).
 * TCP socket is not working properly and it should not be used
+* TCP socket does not support method `send_to`
 * Following Socket API methods are not implemented:
     * `socket_accept`
     * `socket_start_listen`

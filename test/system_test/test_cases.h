@@ -28,8 +28,11 @@ typedef void (*run_func_t)(void);
 int socket_api_test_create_destroy(socket_stack_t stack, socket_address_family_t disable_family);
 int socket_api_test_socket_str2addr(socket_stack_t stack, socket_address_family_t disable_family);
 int socket_api_test_connect_close(socket_stack_t stack, socket_address_family_t af, socket_proto_family_t disable_family, const char *server, uint16_t port, run_func_t run_cb);
+int socket_api_test_bind_connect_close(socket_stack_t stack, const char *server, uint16_t port, run_func_t run_cb, uint16_t source_port);
 int socket_api_test_echo_client_connected(socket_stack_t stack, socket_address_family_t af, socket_proto_family_t pf, bool connect,
         const char *server, uint16_t port, run_func_t run_cb, uint16_t max_packet_size);
+
+int socket_api_test_echo_server_stream(socket_stack_t stack, socket_address_family_t af, const char *local_addr, uint16_t port, run_func_t run_cb);
 
 /* NanoStack specific tests */
 /*

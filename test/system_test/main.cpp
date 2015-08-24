@@ -34,6 +34,8 @@
 #define TEST_PORT           50001
 #define TEST_NO_SRV_PORT    40000   // No server listening on this port
 #define CONNECT_PORT        50000   // TCP server listening on this port
+#define CONNECT_SOURCE_PORT 55555   // TCP socket bound port
+
 #define MAX_NUM_OF_SOCKETS  16      // NanoStack supports max 16 sockets, 2 are already reserved by stack.
 #define STRESS_TESTS_ENABLE         // Long lasting stress tests enabled
 #define STRESS_TESTS_LOOP_COUNT 100 // Stress test loop count
@@ -84,7 +86,10 @@ void enable_detailed_tracing(bool high)
 
 void app_start(int, char **)
 {
-    int8_t err;
+    mesh_error_t err;
+    // set tracing baud rate
+    static Serial pc(USBTX, USBRX);
+    pc.baud(115200);
 
     mesh_api = (Mesh6LoWPAN_ND *)MeshInterfaceFactory::createInterface(MESH_TYPE_6LOWPAN_ND);
     err = mesh_api->init(rf_device_register(), mesh_network_callback);
@@ -98,6 +103,8 @@ void app_start(int, char **)
         return;
     }
     enable_detailed_tracing(true);
+
+    /* Tests will be started from callback once connected to the network */
 }
 
 int runTests(void)
@@ -105,7 +112,7 @@ int runTests(void)
     MBED_HOSTTEST_TIMEOUT(5);
     MBED_HOSTTEST_SELECT(default);
     MBED_HOSTTEST_DESCRIPTION(NanoStack Socket Abstraction Layer tests);
-    MBED_HOSTTEST_START("NanoStack SAL");
+    MBED_HOSTTEST_START("6LoWPAN Socket Abstraction Layer");
 
     int rc;
     tests_pass = 1;
@@ -120,6 +127,9 @@ int runTests(void)
         rc = socket_api_test_connect_close(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_DGRAM, TEST_SERVER, CONNECT_PORT, mesh_interface_run);
         tests_pass = tests_pass && rc;
 
+        rc = socket_api_test_bind_connect_close(SOCKET_STACK_NANOSTACK_IPV6, TEST_SERVER, CONNECT_PORT, mesh_interface_run, CONNECT_SOURCE_PORT);
+        tests_pass = tests_pass && rc;
+
         rc = socket_api_test_echo_client_connected(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_DGRAM,
                 false, TEST_SERVER, TEST_PORT, mesh_interface_run, NS_MAX_UDP_PACKET_SIZE);
         tests_pass = tests_pass && rc;
@@ -132,18 +142,9 @@ int runTests(void)
                                  TEST_SERVER, TEST_PORT, mesh_interface_run);
         tests_pass = tests_pass && rc;
 
-#if 0
-        // Requires TCP test server... and TCP sockets doesn't work properly, skip test case
-        rc = ns_socket_test_bind(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_STREAM,
-                                 TEST_SERVER, TEST_PORT, mesh_interface_run);
-        tests_pass = tests_pass && rc;
-#endif
-#if 0
-        // TCP connect doesn't work yet, therefore can't be run
         rc = ns_socket_test_connect_failure(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_STREAM,
                                             TEST_SERVER, TEST_NO_SRV_PORT, mesh_interface_run);
         tests_pass = tests_pass && rc;
-#endif
 
         rc = ns_socket_test_max_num_of_sockets(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_DGRAM,
                                                TEST_SERVER, TEST_PORT, mesh_interface_run, MAX_NUM_OF_SOCKETS);

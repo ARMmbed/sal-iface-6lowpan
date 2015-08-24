@@ -77,10 +77,14 @@ void mesh_network_callback(mesh_connection_status_t mesh_state)
 
 void app_start(int, char **)
 {
-    int8_t status;
+    mesh_error_t status;
+    // set tracing baud rate
+    static Serial pc(USBTX, USBRX);
+    pc.baud(115200);
 
     // init mesh api
     mesh_api = (Mesh6LoWPAN_ND *)MeshInterfaceFactory::createInterface(MESH_TYPE_6LOWPAN_ND);
+    tr_info("6LoWPAN UDP example application");
     status = mesh_api->init(rf_device_register(), mesh_network_callback);
     if (status != MESH_ERROR_NONE) {
         tr_error("Failed to initialize mesh network, error %d!", status);

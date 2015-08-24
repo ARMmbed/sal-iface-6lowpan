@@ -1,7 +1,8 @@
-# UDP Example
-This application sends data packet to mbed 6LoWPAN gateway that echoes data packet back to the client.
+# TCP Example
+This application sends data packet to a remote server that echoes data packet back to the client. 
+The remote server needs to be running on a PC that is connected to mbed OS Gateway. 
 
-This example is implemented as a logic class (UDPTest) wrapping a UDP socket. The logic class handles all UDP data sending and receiving. Main program will trace the sent and received data when response is received.
+Remote server IPv6 address must be updated to macro HOST_ADDR in file `main.cpp`.
 
 ## Pre-requisites
 To build and run this example the requirements below are necessary:
@@ -17,11 +18,20 @@ To build and run this example the requirements below are necessary:
 * A mbed 6LoWPAN Gateway
 * A micro-USB cable
 * A micro-USB charger for mbed 6LoWPAN Gateway
+* A test PC running TCP test server 
+
+## Set up remote TCP server
+* Set the test PC to run on IP address `fd00:ff1:ce0b:a5e0::1` and use 64-bit network mask `fd00:ff1:ce0b:a5e0::1/64`.
+* Power up the mbed 6LoWPAN gateway by connecting usb charger to it
+* Connect the mbed 6LoWPAN gateway to the test PC with ethernet cable 
+* Copy TCP test server from `test/host_tests/TCP_TestServer_IPv6.py` to the remote PC
+* Start server by running command `python TCP_TestServer_IPv6.py`   
+* Copy IPv6 address of the test PC to the main application macro `HOST_ADDR`.
 
 ## Getting Started
 1. Connect the frdm-k64f and 6LoWPAN RF shield together
-2. Flash mbed 6LoWPAN gateway using the same RF channel that will be used in the RF shield.
-3. Open a terminal in the root of `sal-iface-6lowpan` directory
+2. Flash mbed 6LoWPAN gateway using the same RF channel that is used in the RF shield.
+3. Open a terminal in the root of `sal-iface_6lowpan` directory
 4. Check that there are no missing dependencies
 
     ```
@@ -32,17 +42,14 @@ To build and run this example the requirements below are necessary:
 
     ```
     $ yt build
-    ```
+    ``` 
+6. Copy `build/frdm-k64f-gcc/test/sal-iface-6lowpan-test-nanostack_tcp.bin` to your mbed board and wait until the LED next to the USB port stops blinking.
 
-6. Start mbed 6LoWPAN Gateway by connecting the USB charger 
+7. Start the serial terminal emulator and connect to the virtual serial port presented by frdm-k64f. For settings, use 115200 baud, 8N1, no flow control.
 
-7. Copy `build/frdm-k64f-gcc/test/sal-iface-6lowpan-test-nanostack_udp.bin` to your mbed board and wait until the LED next to the USB port stops blinking.
+8. Press the reset button on the board.
 
-8. Start the serial terminal emulator and connect to the virtual serial port presented by frdm-k64f. For settings, use 115200 baud, 8N1, no flow control.
-
-9. Press the reset button on the board.
-
-10. The output in the serial terminal emulator window displays the trace messages.
+9. The output in the serial terminal emulator window displays the trace messages.
 
 ## Using a debugger
 Optionally, connect using a debugger to set breakpoints and follow program flow. Proceed normally up to and including step 7, then:
@@ -70,10 +77,10 @@ Optionally, connect using a debugger to set breakpoints and follow program flow.
     INFO:root:GDB server started at port:3333
     ```
 
-2. Open a new terminal window, go to the root directory of your copy of sal-iface-6lowpan, then start GDB and connect to the GDB server.
+2. Open a new terminal window, go to the root directory of your copy of mbed-6lowpan-adapter, then start GDB and connect to the GDB server.
 
     ```
-    $ arm-none-eabi-gdb -ex "target remote localhost:3333" -ex load ./build/frdm-k64f-gcc/test/sal-iface-6lowpan-test-nanostack_udp
+    $ arm-none-eabi-gdb -ex "target remote localhost:3333" -ex load ./build/frdm-k64f-gcc/test/sal-iface-6lowpan-test-nanostack_tcp
     ```
 
 3. In a third terminal window, start the serial terminal emulator and connect to the virtual serial port presented by frdm-k64f.
@@ -84,4 +91,4 @@ Optionally, connect using a debugger to set breakpoints and follow program flow.
     (gdb) c
     ```
 
-5. The output in the serial emulator window should look like in step 10 above.
+5. The output in the serial terminal emulator displays trace messages.
