@@ -119,6 +119,12 @@ int runTests(void)
     tests_pass = 1;
 
     do {
+#if 0
+        rc = ns_socket_test_close_api(SOCKET_STACK_NANOSTACK_IPV6);
+        tests_pass = tests_pass && rc;
+        return 0;
+#endif
+
         rc = socket_api_test_create_destroy(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET4);
         tests_pass = tests_pass && rc;
 
@@ -176,13 +182,13 @@ int runTests(void)
         /*
          * Test Socket API's with illegal values
          */
-        rc = ns_socket_test_recv_from_api(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_DGRAM);
+        rc = ns_socket_test_recv_from_api(SOCKET_STACK_NANOSTACK_IPV6);
         tests_pass = tests_pass && rc;
 
-        rc = ns_socket_test_send_to_api(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_DGRAM);
+        rc = ns_socket_test_send_to_api(SOCKET_STACK_NANOSTACK_IPV6);
         tests_pass = tests_pass && rc;
 
-        rc = ns_socket_test_connect_api(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_DGRAM);
+        rc = ns_socket_test_connect_api(SOCKET_STACK_NANOSTACK_IPV6);
         tests_pass = tests_pass && rc;
 
         rc = ns_socket_test_resolve_api(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_DGRAM);
@@ -192,6 +198,15 @@ int runTests(void)
         tests_pass = tests_pass && rc;
 
         rc = ns_socket_test_bind_api(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_STREAM);
+        tests_pass = tests_pass && rc;
+
+        rc = ns_socket_test_send_api(SOCKET_STACK_NANOSTACK_IPV6);
+        tests_pass = tests_pass && rc;
+
+        rc = ns_socket_test_recv_api(SOCKET_STACK_NANOSTACK_IPV6);
+        tests_pass = tests_pass && rc;
+
+        rc = ns_socket_test_close_api(SOCKET_STACK_NANOSTACK_IPV6);
         tests_pass = tests_pass && rc;
     } while (0);
 

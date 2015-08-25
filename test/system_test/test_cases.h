@@ -83,17 +83,17 @@ int ns_socket_test_udp_traffic(socket_stack_t stack, socket_address_family_t af,
 /*
  * \brief Test recv_from API with error values.
  */
-int ns_socket_test_recv_from_api(socket_stack_t stack, socket_address_family_t af, socket_proto_family_t pf);
+int ns_socket_test_recv_from_api(socket_stack_t stack);
 
 /*
  * \brief Test send_to API with error values.
  */
-int ns_socket_test_send_to_api(socket_stack_t stack, socket_address_family_t af, socket_proto_family_t pf);
+int ns_socket_test_send_to_api(socket_stack_t stack);
 
 /*
  * \brief Test connect API with error values.
  */
-int ns_socket_test_connect_api(socket_stack_t stack, socket_address_family_t af, socket_proto_family_t pf);
+int ns_socket_test_connect_api(socket_stack_t stack);
 
 /*
  * \brief Test socket binding API
@@ -104,6 +104,21 @@ int ns_socket_test_bind_api(socket_stack_t stack, socket_address_family_t af, so
  * \brief Test socket resolving API
   */
 int ns_socket_test_resolve_api(socket_stack_t stack, socket_address_family_t af, socket_proto_family_t pf);
+
+/*
+ * \brief Test socket send API
+  */
+int ns_socket_test_send_api(socket_stack_t stack);
+
+/*
+ * \brief Test socket send API
+  */
+int ns_socket_test_recv_api(socket_stack_t stack);
+
+/*
+ * \brief Test socket close API
+  */
+int ns_socket_test_close_api(socket_stack_t stack);
 
 
 #endif /* __TEST_CASES_H__ */

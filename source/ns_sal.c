@@ -226,11 +226,9 @@ static socket_error_t ns_sal_socket_close(struct socket *sock)
             error = SOCKET_ERROR_BAD_FAMILY;
             break;
         case -2:
-            // -2 if no active tcp session was found.
-            // pass through
         case -3:
-            // -3 if referred socket ID port is declared as a zero.
-            // pass through
+            error = SOCKET_ERROR_NO_CONNECTION;
+            break;
         default:
             error = SOCKET_ERROR_UNKNOWN;
     }
@@ -253,15 +251,15 @@ socket_error_t ns_sal_socket_connect(struct socket *sock,
             error_code = SOCKET_ERROR_NONE;
             break;
         case -1:
-            // can't connect UDP socket or illegal socket ID
-            error_code = SOCKET_ERROR_BAD_FAMILY;
+            error_code = SOCKET_ERROR_BAD_ARGUMENT;
             break;
-        case -4:
+        case -2:
             error_code = SOCKET_ERROR_BAD_ALLOC;
             break;
+        case -5:
+            error_code = SOCKET_ERROR_BAD_FAMILY;
+            break;
         default:
-            /* case -2: tcp connection error */
-            /* case -3:  socket is already in listen state */
             error_code = SOCKET_ERROR_UNKNOWN;
             break;
     }
@@ -380,10 +378,15 @@ socket_error_t ns_sal_socket_reject(struct socket *socket)
 socket_error_t ns_sal_socket_send(struct socket *socket, const void *buf,
                                   const size_t len)
 {
-    socket_error_t err = SOCKET_ERROR_UNIMPLEMENTED;
+    socket_error_t err = SOCKET_ERROR_UNKNOWN;
+
+    if (NULL == socket || NULL == socket->impl) {
+        return SOCKET_ERROR_NULL_PTR;
+    }
+
     if (SOCKET_DGRAM == socket->family) {
         // UDP sockets can't be connected in mesh.
-        tr_error("Can't send using family SOCKET_DGRAM!");
+        tr_error("send() not supported with SOCKET_DGRAM!");
         err = SOCKET_ERROR_BAD_FAMILY;
     } else if (SOCKET_STREAM == socket->family) {
         int8_t status = ns_wrapper_socket_send(socket->impl, (uint8_t *) buf,
@@ -392,6 +395,10 @@ socket_error_t ns_sal_socket_send(struct socket *socket, const void *buf,
             case 0:
                 err = SOCKET_ERROR_NONE;
                 break;
+            case -1:
+            case -6:
+                err = SOCKET_ERROR_BAD_ARGUMENT;
+                break;
             case -2:
                 err = SOCKET_ERROR_BAD_ALLOC;
                 break;
@@ -399,7 +406,7 @@ socket_error_t ns_sal_socket_send(struct socket *socket, const void *buf,
                 err = SOCKET_ERROR_NO_CONNECTION;
                 break;
             default:
-                /* -1, -4, 5, 6 */
+                /* -4, 5 */
                 err = SOCKET_ERROR_UNKNOWN;
                 break;
         }
@@ -458,7 +465,15 @@ socket_error_t ns_sal_socket_recv(struct socket *socket, void *buf,
                                   size_t *len)
 {
     FUNC_ENTRY_TRACE("ns_sal_socket_recv() len=%d", *len);
-    socket_error_t err = ns_sal_recv_validate(socket, buf, len);
+
+    socket_error_t err;
+
+    if (SOCKET_DGRAM == socket->family) {
+        tr_error("recv() not supported with SOCKET_DGRAM!");
+        return SOCKET_ERROR_BAD_FAMILY;
+    }
+
+    err = ns_sal_recv_validate(socket, buf, len);
     if (err != SOCKET_ERROR_NONE) {
         return err;
     }
@@ -477,6 +492,11 @@ socket_error_t ns_sal_socket_recv_from(struct socket *socket, void *buf,
     /* socket and socket->impl will be validated in ns_sal_recv_validate */
     if (NULL == addr || NULL == port) {
         return SOCKET_ERROR_NULL_PTR;
+    }
+
+    if (SOCKET_STREAM == socket->family) {
+        tr_error("recv_from() not supported with SOCKET_STREAM!");
+        return SOCKET_ERROR_BAD_FAMILY;
     }
 
     socket_error_t err = ns_sal_recv_validate(socket, buf, len);
