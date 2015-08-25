@@ -457,12 +457,15 @@ socket_error_t ns_sal_socket_send_to(struct socket *socket, const void *buf,
 socket_error_t ns_sal_socket_recv(struct socket *socket, void *buf,
                                   size_t *len)
 {
+    FUNC_ENTRY_TRACE("ns_sal_socket_recv() len=%d", *len);
     socket_error_t err = ns_sal_recv_validate(socket, buf, len);
     if (err != SOCKET_ERROR_NONE) {
         return err;
     }
 
     ns_sal_copy_stream(socket, buf, len);
+
+    //tr_debug("received %d bytes", *len);
 
     return SOCKET_ERROR_NONE;
 }

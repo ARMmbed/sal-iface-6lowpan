@@ -545,11 +545,11 @@ static void client_cb()
 {
     struct socket_event *e = client_socket->event;
     event_flag_t event = e->event;
+    TEST_DBG("client_cb %d\r\n", client_socket->event->event);
     switch (event) {
         case SOCKET_EVENT_RX_DONE:
             client_rx_done = true;
             client_rx_resp_count++;
-            TEST_DBG("SOCKET_EVENT_RX_DONE %d\r\n", client_rx_resp_count);
             break;
         case SOCKET_EVENT_TX_DONE:
             client_tx_done = true;
@@ -605,7 +605,7 @@ int socket_api_test_echo_client_connected(socket_stack_t stack, socket_address_f
     if (connect) {
         client_event_done = false;
         timedout = 0;
-        to.attach(onTimeout, SOCKET_TEST_TIMEOUT);
+        to.attach(onTimeout, 2*SOCKET_TEST_TIMEOUT);
         err = api->connect(&s, &addr, port);
         if (!TEST_EQ(err, SOCKET_ERROR_NONE)) {
             TEST_EXIT();
@@ -642,7 +642,7 @@ int socket_api_test_echo_client_connected(socket_stack_t stack, socket_address_f
         client_tx_done = false;
         client_rx_done = false;
         timedout = 0;
-        to.attach(onTimeout, SOCKET_TEST_TIMEOUT);
+        to.attach(onTimeout, 2*SOCKET_TEST_TIMEOUT);
 
         if (connect) {
             err = api->send(&s, data, nWords * sizeof(uint16_t));
@@ -661,9 +661,15 @@ int socket_api_test_echo_client_connected(socket_stack_t stack, socket_address_f
                 if (!TEST_EQ(timedout, 0)) {
                     break;
                 }
-                if (!TEST_NEQ(client_tx_info.sentbytes, 0)) {
-                    break;
+                if (!connect) {
+                    // Nanostack bug, it doesn't return sent bytes in TX_DONE
+                    if (!TEST_NEQ(client_tx_info.sentbytes, 0)) {
+                        break;
+                    }
+                } else {
+                    client_tx_info.sentbytes = nWords * sizeof(uint16_t);
                 }
+
                 tx_bytes += client_tx_info.sentbytes;
                 if (tx_bytes < nWords * sizeof(uint16_t)) {
                     client_tx_done = false;
@@ -675,7 +681,7 @@ int socket_api_test_echo_client_connected(socket_stack_t stack, socket_address_f
             } while (1);
         }
         timedout = 0;
-        to.attach(onTimeout, SOCKET_TEST_TIMEOUT);
+        to.attach(onTimeout, 10*SOCKET_TEST_TIMEOUT);
         memset(data, 0, nWords * sizeof(uint16_t));
         // Wait for the onReadable callback
         size_t rx_bytes = 0;
@@ -734,7 +740,7 @@ int socket_api_test_echo_client_connected(socket_stack_t stack, socket_address_f
         // close the socket
         client_event_done = false;
         timedout = 0;
-        to.attach(onTimeout, SOCKET_TEST_TIMEOUT);
+        to.attach(onTimeout, 2*SOCKET_TEST_TIMEOUT);
         err = api->close(&s);
         TEST_EQ(err, SOCKET_ERROR_NONE);
 

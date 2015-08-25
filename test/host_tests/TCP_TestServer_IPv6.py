@@ -22,36 +22,68 @@ import socket
 import time
 
 cmd_reply_source_port = "#REPLY_BOUND_PORT:"
+server_socket = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+client_socket = None
 
+#Reply with source port
 def reply_source_port(sock, address):
     data = str(address[1])
     sock.send(data)
     print '->Source port:', address[1]
 
-host = ''
-port = 50000
-backlog = 5
-size = 1024
-print 'IPv6 TCP Test Server'
-print "Open socket"
-s = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-print "Bind socket"
-s.bind((host,port))
-print "Start listening port:", port
-s.listen(backlog)
-while 1:
-    client, address = s.accept()
-    print 'Connected from:', address[0], 'port:', address[1]
-    time.sleep(1)
-    data = client.recv(size)
-    if not data:
-        print 'No data received'
-    else:
-        print 'received data:', data
-        if data.startswith(cmd_reply_source_port):
-                reply_source_port(client, address)
+#Echo data until socket is closed
+def echo_data_loop(sock, data):
+    print "echoing bytes:", len(data)
+    sock.sendall(data)
+    while True:
+        try:
+            data = sock.recv(4096)
+        except:
+            data = None
+        if not data:
+            break
+        print "echoing bytes:", len(data)
+        sock.sendall(data)
+
+def runTCPServer():
+    host = ''
+    port = 50000
+    backlog = 5
+    size = 1024
+    print 'IPv6 TCP Test Server'
+    print "Open socket"
+    #server_socket = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+    print "Bind socket"
+    server_socket.bind((host,port))
+    print "Start listening port:", port
+    server_socket.listen(backlog)
+
+    while 1:
+        client, address = server_socket.accept()
+        client_socket = client
+        print 'Connected from:', address[0], 'port:', address[1]
+        data = client.recv(size)
+        if not data:
+            print 'No data received'
         else:
-            client.sendall(data)
-            time.sleep(1)
-    client.close()
-    print 'socket closed'
+            print 'data received...'
+            if data.startswith(cmd_reply_source_port):
+                reply_source_port(client, address)
+            if data[0] == "\x00":
+                echo_data_loop(client, data)
+            else:
+                client.sendall(data)
+                time.sleep(1)
+        client.close()
+        client_socket = None
+        print 'Client socket closed'
+
+if __name__ == '__main__':
+    try:
+        runTCPServer()
+    except KeyboardInterrupt:
+        print 'Close server socket'
+        server_socket.close
+        if client_socket is not None:
+            client_socket.close
+            print 'Close client socket'

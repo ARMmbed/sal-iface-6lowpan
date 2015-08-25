@@ -33,7 +33,7 @@
 #define TEST_SERVER         "FD00:FF1:CE0B:A5E0:21B:38FF:FE90:ABB1"
 #define TEST_PORT           50001
 #define TEST_NO_SRV_PORT    40000   // No server listening on this port
-#define CONNECT_PORT        50000   // TCP server listening on this port
+#define TCP_PORT            50000   // TCP server listening on this port
 #define CONNECT_SOURCE_PORT 55555   // TCP socket bound port
 
 #define MAX_NUM_OF_SOCKETS  16      // NanoStack supports max 16 sockets, 2 are already reserved by stack.
@@ -41,6 +41,7 @@
 #define STRESS_TESTS_LOOP_COUNT 100 // Stress test loop count
 
 #define NS_MAX_UDP_PACKET_SIZE 2047
+#define NS_MAX_TCP_PACKET_SIZE 4096
 
 static mesh_connection_status_t mesh_network_state = MESH_DISCONNECTED;
 static Mesh6LoWPAN_ND *mesh_api = NULL;
@@ -124,14 +125,18 @@ int runTests(void)
         rc = socket_api_test_socket_str2addr(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET4);
         tests_pass = tests_pass && rc;
 
-        rc = socket_api_test_connect_close(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_DGRAM, TEST_SERVER, CONNECT_PORT, mesh_interface_run);
+        rc = socket_api_test_connect_close(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_DGRAM, TEST_SERVER, TCP_PORT, mesh_interface_run);
         tests_pass = tests_pass && rc;
 
-        rc = socket_api_test_bind_connect_close(SOCKET_STACK_NANOSTACK_IPV6, TEST_SERVER, CONNECT_PORT, mesh_interface_run, CONNECT_SOURCE_PORT);
+        rc = socket_api_test_bind_connect_close(SOCKET_STACK_NANOSTACK_IPV6, TEST_SERVER, TCP_PORT, mesh_interface_run, CONNECT_SOURCE_PORT);
         tests_pass = tests_pass && rc;
 
         rc = socket_api_test_echo_client_connected(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_DGRAM,
                 false, TEST_SERVER, TEST_PORT, mesh_interface_run, NS_MAX_UDP_PACKET_SIZE);
+        tests_pass = tests_pass && rc;
+
+        rc = socket_api_test_echo_client_connected(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_STREAM,
+                true, TEST_SERVER, TCP_PORT, mesh_interface_run, NS_MAX_TCP_PACKET_SIZE);
         tests_pass = tests_pass && rc;
 
         rc = ns_udp_test_buffered_recv_from(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_DGRAM,
