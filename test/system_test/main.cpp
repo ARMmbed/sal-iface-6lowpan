@@ -112,7 +112,7 @@ int runTests(void)
 {
     MBED_HOSTTEST_TIMEOUT(5);
     MBED_HOSTTEST_SELECT(default);
-    MBED_HOSTTEST_DESCRIPTION(NanoStack Socket Abstraction Layer tests);
+    MBED_HOSTTEST_DESCRIPTION(6LoWPAN Socket Abstraction Layer tests);
     MBED_HOSTTEST_START("6LoWPAN Socket Abstraction Layer");
 
     int rc;
@@ -120,7 +120,7 @@ int runTests(void)
 
     do {
 #if 0
-        rc = ns_socket_test_close_api(SOCKET_STACK_NANOSTACK_IPV6);
+        rc = ns_tcp_bind_and_remote_end_close(SOCKET_STACK_NANOSTACK_IPV6, TEST_SERVER, TCP_PORT, mesh_interface_run, CONNECT_SOURCE_PORT);
         tests_pass = tests_pass && rc;
         return 0;
 #endif
@@ -134,7 +134,7 @@ int runTests(void)
         rc = socket_api_test_connect_close(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_DGRAM, TEST_SERVER, TCP_PORT, mesh_interface_run);
         tests_pass = tests_pass && rc;
 
-        rc = socket_api_test_bind_connect_close(SOCKET_STACK_NANOSTACK_IPV6, TEST_SERVER, TCP_PORT, mesh_interface_run, CONNECT_SOURCE_PORT);
+        rc = ns_tcp_bind_and_remote_end_close(SOCKET_STACK_NANOSTACK_IPV6, TEST_SERVER, TCP_PORT, mesh_interface_run, CONNECT_SOURCE_PORT);
         tests_pass = tests_pass && rc;
 
         rc = socket_api_test_echo_client_connected(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_DGRAM,

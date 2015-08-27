@@ -352,7 +352,7 @@ int socket_api_test_connect_close(socket_stack_t stack, socket_address_family_t 
     TEST_RETURN();
 }
 
-int socket_api_test_bind_connect_close(socket_stack_t stack, const char *server, uint16_t port, run_func_t run_cb, uint16_t source_port)
+int ns_tcp_bind_and_remote_end_close(socket_stack_t stack, const char *server, uint16_t port, run_func_t run_cb, uint16_t source_port)
 {
     struct socket s;
     socket_error_t err;
@@ -437,22 +437,25 @@ int socket_api_test_bind_connect_close(socket_stack_t stack, const char *server,
     int res = memcmp(str, data, strlen(str));
     TEST_EQ(res, 0);
 
-    // close the connection
-    timedout = 0;
+    // run stack to receive TCP FIN
     closed = 0;
-    to.attach(onTimeout, 4 * SOCKET_TEST_TIMEOUT);
-    err = api->close(&s);
-    TEST_EQ(err, SOCKET_ERROR_NONE);
-    if (err != SOCKET_ERROR_NONE) {
-        printf("err = %d\r\n", err);
-    }
-
+    timedout = 0;
+    to.attach(onTimeout, 2 * SOCKET_TEST_TIMEOUT);
     while (!closed && !timedout) {
         run_cb();
     }
-
     to.detach();
     TEST_EQ(timedout, 0);
+    timedout = 0;
+
+    // try to read socket that is closed by remote end
+    err = api->recv(&s, (void *)(&data), &len);
+    TEST_EQ(err, SOCKET_ERROR_NO_CONNECTION);
+
+    // close the connection
+    err = api->close(&s);
+    TEST_EQ(err, SOCKET_ERROR_NO_CONNECTION);
+
     // Tell the host to kill the server
     TEST_PRINT(">>> KILL ES\r\n");
 
@@ -1724,7 +1727,7 @@ int ns_socket_test_send_to_api(socket_stack_t stack)
     err = api->send_to(&sock, &data, len, &addr, port);
     TEST_EQ(err, SOCKET_ERROR_NULL_PTR);
 
-    // Create a UDP socket
+    // Create a TCP socket
     pf = SOCKET_STREAM;
     err = api->create(&sock, af, pf, &client_cb);
     if (!TEST_EQ(err, SOCKET_ERROR_NONE)) {

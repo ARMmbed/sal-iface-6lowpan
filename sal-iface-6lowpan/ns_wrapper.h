@@ -87,11 +87,6 @@ int8_t ns_wrapper_socket_send(sock_data_s *sock_data_ptr, uint8_t *buffer, uint1
  */
 int8_t ns_wrapper_socket_send_to(sock_data_s *sock_data_ptr, ns_address_t *address, uint8_t *buffer, uint16_t length);
 
-/*
- * \brief Receive data from NanoStack socket
- */
-int8_t ns_wrapper_socket_recv_from(sock_data_s *sock_data_ptr, ns_address_t *addr, uint8_t *buffer, uint16_t length);
-
 #ifdef __cplusplus
 }
 #endif

@@ -27,6 +27,7 @@ client_socket = None
 
 #Reply with source port
 def reply_source_port(sock, address):
+    print "reply source port:", address[1]
     data = str(address[1])
     sock.send(data)
     print '->Source port:', address[1]
@@ -69,14 +70,14 @@ def runTCPServer():
             print 'data received...'
             if data.startswith(cmd_reply_source_port):
                 reply_source_port(client, address)
-            if data[0] == "\x00":
+            elif data[0] == "\x00":
                 echo_data_loop(client, data)
             else:
                 client.sendall(data)
                 time.sleep(1)
         client.close()
         client_socket = None
-        print 'Client socket closed'
+        print 'client socket closed'
 
 if __name__ == '__main__':
     try:

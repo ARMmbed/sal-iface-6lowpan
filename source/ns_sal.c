@@ -453,6 +453,7 @@ socket_error_t ns_sal_socket_send_to(struct socket *socket, const void *buf,
             break;
         }
         case SOCKET_STREAM:
+            tr_error("send_to() not supported with SOCKET_STREAM!");
             error_status = SOCKET_ERROR_BAD_FAMILY;
             break;
     }
@@ -475,6 +476,14 @@ socket_error_t ns_sal_socket_recv(struct socket *socket, void *buf,
 
     err = ns_sal_recv_validate(socket, buf, len);
     if (err != SOCKET_ERROR_NONE) {
+        if (err == SOCKET_ERROR_WOULD_BLOCK) {
+            // check if connection is closed by remote end
+            if (!(socket->status & SOCKET_STATUS_CONNECTED))
+            {
+                *len = 0;
+                return SOCKET_ERROR_NO_CONNECTION;
+            }
+        }
         return err;
     }
 

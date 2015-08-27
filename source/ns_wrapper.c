@@ -195,9 +195,3 @@ int8_t ns_wrapper_socket_send_to(sock_data_s *sock_data_ptr, ns_address_t *addr,
     return socket_sendto(sock_data_ptr->socket_id, addr, buffer, length);
 }
 
-int8_t ns_wrapper_socket_recv_from(sock_data_s *sock_data_ptr, ns_address_t *addr, uint8_t *buffer, uint16_t length)
-{
-    FUNC_ENTRY_TRACE("ns_wrapper_socket_recv_from: sock_id=%d, buf len=%d, port=%d", sock_data_ptr->socket_id, length, addr->identifier);
-    return socket_read(sock_data_ptr->socket_id, addr, buffer, length);
-}
-
