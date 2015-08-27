@@ -344,9 +344,9 @@ socket_error_t ns_sal_socket_bind(struct socket *socket,
 socket_error_t ns_sal_start_listen(struct socket *socket,
                                    const uint32_t backlog)
 {
+    tr_error("start_listen() unimplemented!");
     (void) socket;
     (void) backlog;
-    tr_error("ns_sal_start_listen() not implemented");
     return SOCKET_ERROR_UNIMPLEMENTED;
 }
 
@@ -354,7 +354,7 @@ socket_error_t ns_sal_start_listen(struct socket *socket,
 socket_error_t ns_sal_stop_listen(struct socket *socket)
 {
     (void) socket;
-    tr_error("ns_sal_stop_listen() not implemented");
+    tr_error("stop_listen() unimplemented!");
     return SOCKET_ERROR_UNIMPLEMENTED;
 }
 
@@ -362,14 +362,15 @@ socket_error_t ns_sal_stop_listen(struct socket *socket)
 socket_error_t ns_sal_socket_accept(struct socket *socket,
                                     socket_api_handler_t handler)
 {
+    tr_error("accept() unimplemented!");
     (void) socket;
     (void) handler;
-    tr_error("ns_sal_socket_accept() not implemented");
     return SOCKET_ERROR_UNIMPLEMENTED;
 }
 
 socket_error_t ns_sal_socket_reject(struct socket *socket)
 {
+    tr_error("reject() unimplemented!");
     (void) socket;
     return SOCKET_ERROR_UNIMPLEMENTED;
 }
@@ -521,6 +522,7 @@ socket_error_t ns_sal_socket_recv_from(struct socket *socket, void *buf,
 /* socket_api function, see socket_api.h for details */
 uint8_t ns_sal_socket_is_connected(const struct socket *socket)
 {
+    tr_error("is_connected() unimplemented!");
     if (SOCKET_DGRAM == socket->family) {
         // UDP sockets can't be connected in NanoStack */
         return 0;
@@ -535,13 +537,14 @@ uint8_t ns_sal_socket_is_connected(const struct socket *socket)
 /* socket_api function, see socket_api.h for details */
 uint8_t ns_sal_socket_is_bound(const struct socket *socket)
 {
-    // TODO: Not implemented
+    tr_error("is_bound() unimplemented!");
     (void) socket;
     return 0;
 }
 
 socket_error_t ns_sal_socket_get_local_addr(const struct socket *socket, struct socket_addr *addr)
 {
+    tr_error("get_local_addr() unimplemented!");
     if (socket == NULL || addr == NULL) {
         return SOCKET_ERROR_NULL_PTR;
     }
@@ -552,6 +555,7 @@ socket_error_t ns_sal_socket_get_local_addr(const struct socket *socket, struct 
 
 socket_error_t ns_sal_socket_get_remote_addr(const struct socket *socket, struct socket_addr *addr)
 {
+    tr_error("get_remote_addr() unimplemented!");
     if (socket == NULL || addr == NULL) {
         return SOCKET_ERROR_NULL_PTR;
     }
@@ -561,6 +565,7 @@ socket_error_t ns_sal_socket_get_remote_addr(const struct socket *socket, struct
 
 socket_error_t ns_sal_socket_get_local_port(const struct socket *socket, uint16_t *port)
 {
+    tr_error("get_local_port() unimplemented!");
     if (socket == NULL || port == NULL) {
         return SOCKET_ERROR_NULL_PTR;
     }
@@ -569,6 +574,7 @@ socket_error_t ns_sal_socket_get_local_port(const struct socket *socket, uint16_
 
 socket_error_t ns_sal_socket_get_remote_port(const struct socket *socket, uint16_t *port)
 {
+    tr_error("get_remote_port() unimplemented!");
     if (socket == NULL || port == NULL) {
         return SOCKET_ERROR_NULL_PTR;
     }

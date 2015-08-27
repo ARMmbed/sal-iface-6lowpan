@@ -125,6 +125,11 @@ int ns_socket_test_recv_api(socket_stack_t stack);
   */
 int ns_socket_test_close_api(socket_stack_t stack);
 
+/*
+ * \brief Test APIs that are unimplemented
+  */
+int ns_socket_test_unimplemented_apis(socket_stack_t stack);
+
 
 #endif /* __TEST_CASES_H__ */
 

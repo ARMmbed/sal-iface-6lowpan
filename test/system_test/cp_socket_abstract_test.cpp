@@ -437,7 +437,7 @@ int ns_tcp_bind_and_remote_end_close(socket_stack_t stack, const char *server, u
     int res = memcmp(str, data, strlen(str));
     TEST_EQ(res, 0);
 
-    // run stack to receive TCP FIN
+    // run stack until remote end closes the connection
     closed = 0;
     timedout = 0;
     to.attach(onTimeout, 2 * SOCKET_TEST_TIMEOUT);
@@ -465,7 +465,6 @@ int ns_tcp_bind_and_remote_end_close(socket_stack_t stack, const char *server, u
 
     TEST_RETURN();
 }
-
 
 static volatile bool blocking_resolve_done;
 static volatile socket_error_t blocking_resolve_err;
@@ -1665,9 +1664,13 @@ int ns_socket_test_recv_from_api(socket_stack_t stack)
     if (!TEST_EQ(err, SOCKET_ERROR_NONE)) {
         TEST_EXIT();
     }
-    // test data buffer NULL
+    // test data with TCP socket
     err = api->recv_from(&sock, &data, &len, &rxaddr, &rxport);
     TEST_EQ(err, SOCKET_ERROR_BAD_FAMILY);
+
+    // destroy the TCP socket
+    err = api->destroy(&sock);
+    TEST_EQ(err, SOCKET_ERROR_NONE);
 
 test_exit:
     TEST_RETURN();
@@ -2129,5 +2132,78 @@ int ns_socket_test_close_api(socket_stack_t stack)
     TEST_RETURN();
 }
 
+int ns_socket_test_unimplemented_apis(socket_stack_t stack)
+{
+    struct socket sock;
+    socket_error_t err;
+    const struct socket_api *api = socket_get_api(stack);
+    client_socket = &sock;
+    socket_address_family_t af = SOCKET_AF_INET6;
+    socket_proto_family_t pf = SOCKET_DGRAM;
+    struct socket_addr addr;
+    uint16_t port;
+    uint8_t status;
+
+    TEST_CLEAR();
+    TEST_PRINT("\r\n%s af: %d, pf: %d\r\n", __func__, (int) af, (int) pf);
+
+    if (!TEST_NEQ(api, NULL)) {
+        // Test cannot continue without API.
+        TEST_RETURN();
+    }
+    err = api->init();
+    if (!TEST_EQ(err, SOCKET_ERROR_NONE)) {
+        TEST_RETURN();
+    }
+
+    // Zero the socket implementation
+    sock.impl = NULL;
+    // Create a socket
+    err = api->create(&sock, af, pf, &client_cb);
+    if (!TEST_EQ(err, SOCKET_ERROR_NONE)) {
+        TEST_RETURN();
+    }
+
+    status = api->is_bound(&sock);
+    TEST_EQ(status, 0);
+
+    status = api->is_connected(&sock);
+    TEST_EQ(status, 0);
 
 
+    uint32_t pi = api->periodic_interval(&sock);
+    TEST_EQ(pi, 0);
+
+    socket_api_handler_t handler = api->periodic_task(&sock);
+    TEST_EQ(handler, NULL);
+
+    err = api->start_listen(&sock, 0);
+    TEST_EQ(err, SOCKET_ERROR_UNIMPLEMENTED);
+
+    err = api->stop_listen(&sock);
+    TEST_EQ(err, SOCKET_ERROR_UNIMPLEMENTED);
+
+    err = api->accept(&sock, NULL);
+    TEST_EQ(err, SOCKET_ERROR_UNIMPLEMENTED);
+
+    err = api->reject(&sock);
+    TEST_EQ(err, SOCKET_ERROR_UNIMPLEMENTED);
+
+    err = api->get_local_addr(&sock, &addr);
+    TEST_EQ(err, SOCKET_ERROR_UNIMPLEMENTED);
+
+    err = api->get_remote_addr(&sock, &addr);
+    TEST_EQ(err, SOCKET_ERROR_UNIMPLEMENTED);
+
+    err = api->get_local_port(&sock, &port);
+    TEST_EQ(err, SOCKET_ERROR_UNIMPLEMENTED);
+
+    err = api->get_remote_port(&sock, &port);
+    TEST_EQ(err, SOCKET_ERROR_UNIMPLEMENTED);
+
+    // destroy the socket
+    err = api->destroy(&sock);
+    TEST_EQ(err, SOCKET_ERROR_NONE);
+
+    TEST_RETURN();
+}
