@@ -60,23 +60,21 @@ class TestExecutor
 {
 public:
 
-    TestExecutor() : loops(1), testRound(0), testID(0), testIDAPI(0), testIDStress(0)
-    {
-        testRound = loops;
-    }
+    TestExecutor() : loops(1), testRound(1), testID(0), testIDAPI(0), testIDStress(0)
+    {}
 
     void executeTests(void) {
         if (runTest(testID) != -1) {
             testID++;
-            schedule_test_execution(100);
+            schedule_test_execution(1000);
             return;
         } else if (runAPITest(testIDAPI) != -1) {
             testIDAPI++;
-            schedule_test_execution(100);
+            schedule_test_execution(1000);
             return;
         } else if (runStressTest(testIDStress) != -1) {
             testIDStress++;
-            schedule_test_execution(100);
+            schedule_test_execution(1000);
             return;
         }
 
@@ -84,18 +82,30 @@ public:
             mesh_api->disconnect();
         } else {
             loops--;
-            printf("\r\n#####\r\n");
-            printf("\r\nStart test round %d, current result=%d\r\n", testRound - loops, tests_pass);
-            printf("\r\n#####\r\n");
-            testID = testIDAPI = 0;
-            schedule_test_execution(3000);
+            testRound++;
+            if (tests_pass == 1) {
+                printf("\r\n#####\r\n");
+                printf("\r\nStart test round %d, current result=%d\r\n", testRound, tests_pass);
+                printf("\r\n#####\r\n");
+                testID = testIDAPI = testIDStress = 0;
+                schedule_test_execution(30000);
+            } else
+            {
+                printf("\r\nTests FAILED! Testing stopped.\r\n");
+                mesh_api->disconnect();
+            }
         }
     }
 
+    // number of test loops, to execute all tests once set to 1
     int loops;
+    // current test round
     int testRound;
+    // test ID
     int testID;
+    // test ID in API test set
     int testIDAPI;
+    // test ID in stress test set
     int testIDStress;
 };
 
