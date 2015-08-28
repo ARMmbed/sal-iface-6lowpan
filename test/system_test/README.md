@@ -27,18 +27,16 @@ To build and run this application the requirements below are necessary:
 * Optionally, a separate host computer for running python test servers
 
 ## Setting up 6LoWPAN Gateway and Test Server
-1. Flash mbed 6LoWPAN gateway. make sure it is configured to the same RF channel that will be used in the mbed 6LoWPAN shield. 
-File node_tasklet.c contains channel definitions (channel list).
-2. Connect mbed 6LoWPAN Gateway to the host computer with a network cable
-3. Start mbed 6LoWPAN Gateway by connecting USB charger
+1. Flash mbed 6LoWPAN gateway. make sure it is configured to the same RF channel that will be used in the mbed 6LoWPAN shield.
+2. Connect the mbed 6LoWPAN Gateway to the host computer with a network cable
+3. Start the mbed 6LoWPAN Gateway by connecting the USB charger
 4. Start python test servers (found from ./test/host_tests) in the host computer
-5. Check host computer IPv6 address by using ipconfig. Ethernet adapter Local Area Connection 
-contains IPv6 address that needs to be updated to the system test application.
+5. Check host computer IPv6 address by using ipconfig (IPv6 address is needed later).
 
 ## Setting up frdm-k64f development board
 1. Connect the frdm-k64f and 6LoWPAN RF shield together
 2. Connect computer to frdm-k64f using micro USB cable
-3. Modify file main.cpp. Copy/replace test server IPv6 address to macro TEST_SERVER.
+3. Modify file main.cpp, update test server IPv6 address to macro `TEST_SERVER`.
 4. Build the application and flash it to the development board
 
 ## Running the test

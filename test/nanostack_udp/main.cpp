@@ -37,7 +37,8 @@ static Mesh6LoWPAN_ND *mesh_api = NULL;
 /*
  * Callback from a UDPExample appl indicating data is available.
  */
-void data_available_callback() {
+void data_available_callback()
+{
     tr_info("data_available_callback()");
     if (udpTest->isReceived() == true) {
         tr_info("Response received from router:");
@@ -57,8 +58,7 @@ void mesh_network_callback(mesh_connection_status_t mesh_state)
     if (mesh_network_state == MESH_CONNECTED) {
         char router_addr[50];
         tr_info("Connected to mesh network!");
-        if (true == mesh_api->getRouterIpAddress(router_addr, sizeof(router_addr)))
-        {
+        if (true == mesh_api->getRouterIpAddress(router_addr, sizeof(router_addr))) {
             tr_info("Echoing data to router IP address: %s", router_addr);
             udpTest = new UDPTest(data_available_callback);
             udpTest->startEcho(router_addr, ECHO_PORT, TEST_DATA);
@@ -75,11 +75,16 @@ void mesh_network_callback(mesh_connection_status_t mesh_state)
     }
 }
 
-void app_start(int, char**) {
-    int8_t status;
+void app_start(int, char **)
+{
+    mesh_error_t status;
+    // set tracing baud rate
+    static Serial pc(USBTX, USBRX);
+    pc.baud(115200);
 
     // init mesh api
-    mesh_api = (Mesh6LoWPAN_ND*)MeshInterfaceFactory::createInterface(MESH_TYPE_6LOWPAN_ND);
+    mesh_api = (Mesh6LoWPAN_ND *)MeshInterfaceFactory::createInterface(MESH_TYPE_6LOWPAN_ND);
+    tr_info("6LoWPAN UDP example application");
     status = mesh_api->init(rf_device_register(), mesh_network_callback);
     if (status != MESH_ERROR_NONE) {
         tr_error("Failed to initialize mesh network, error %d!", status);

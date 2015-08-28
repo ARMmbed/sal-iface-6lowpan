@@ -24,7 +24,7 @@
 #include "TCPExample.h"
 
 TCPExample::TCPExample(data_received_cb data_received_callback) :
-        sock(SOCKET_STACK_NANOSTACK_IPV6)
+    sock(SOCKET_STACK_NANOSTACK_IPV6)
 {
     _received = false;
     data_recv_callback = data_received_callback;
@@ -50,8 +50,7 @@ socket_error_t TCPExample::startEcho(const char *address, uint16_t port, const c
 {
     _port = port;
     _data_len = length;
-    if (length > DATA_BUF_LEN)
-    {
+    if (length > DATA_BUF_LEN) {
         return SOCKET_ERROR_BAD_ARGUMENT;
     }
     strncpy(_test_data, testData, _data_len);
@@ -74,8 +73,7 @@ bool TCPExample::isReceived()
  */
 char *TCPExample::getResponse()
 {
-    if (isReceived())
-    {
+    if (isReceived()) {
         return _rxBuf;
     }
 
@@ -87,7 +85,7 @@ char *TCPExample::getResponse()
  *
  * @param[in] err status of the address resolving
  */
-void TCPExample::onDNS(Socket *s, struct socket_addr sa, const char* domain)
+void TCPExample::onDNS(Socket *s, struct socket_addr sa, const char *domain)
 {
     tr_debug("onDNS()");
 
@@ -98,8 +96,7 @@ void TCPExample::onDNS(Socket *s, struct socket_addr sa, const char* domain)
     _resolvedAddr.setAddr(&sa);
     socket_error_t  err = sock.connect(_resolvedAddr, _port, TCPStream::ConnectHandler_t(this, &TCPExample::onConnect));
 
-    if (err != SOCKET_ERROR_NONE)
-    {
+    if (err != SOCKET_ERROR_NONE) {
         tr_error("Could not connect!");
     }
 }
@@ -108,7 +105,8 @@ void TCPExample::onDNS(Socket *s, struct socket_addr sa, const char* domain)
  * On Connect handler. Called by underlying protocol stack.
  * Once connected, method will send request to the echoing server.
  */
-void TCPExample::onConnect(TCPStream *s) {
+void TCPExample::onConnect(TCPStream *s)
+{
     tr_debug("onConnect()");
     /* Send the request */
     (void) s;
@@ -139,7 +137,8 @@ void TCPExample::onDisconnect(TCPStream *s)
  *
  * @param[in] err status of the data receiving
  */
-void TCPExample::onReceive(Socket* s) {
+void TCPExample::onReceive(Socket *s)
+{
     (void)s;
     size_t nRx = sizeof(_rxBuf);
     tr_debug("onRecv()");

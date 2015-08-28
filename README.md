@@ -13,10 +13,10 @@ This module is under construction and therefore, there are some limitations:
 
 * DNS resolving is not available, IPv6 address must be used in ascii format.
 * UDP maximum datagram size is 1280 bytes.
-* UDP socket cannot be connected with `socket_connect()`.
+* UDP socket does not support `socket_connect()`, `socket_send()` or `socket_recv()`.
 * `socket_bind()` binds port only, address must be set to `IN_ANY`.
 * There is no API to set the socket options (`set_sock_opt`).
-* TCP socket is not working properly and it should not be used
+* TCP socket does not support method `send_to()` or `recv_from()`
 * Following Socket API methods are not implemented:
     * `socket_accept`
     * `socket_start_listen`

@@ -33,7 +33,7 @@ public:
     void startEcho(const char *address, uint16_t udpPort, const char *test_data);
 
 protected:
-    void onDNS(Socket *s, struct socket_addr sa, const char* domain);
+    void onDNS(Socket *s, struct socket_addr sa, const char *domain);
     void onRecvFrom(Socket *s);
     void onRecv(Socket *s);
     UDPSocket sock;
@@ -42,7 +42,7 @@ protected:
     uint16_t _udpPort;
 
 protected:
-    char _rxBuf[BUF_LEN+1];
+    char _rxBuf[BUF_LEN + 1];
     char _test_data[BUF_LEN];
     uint8_t _data_len;
     data_received_cb data_recv_callback;

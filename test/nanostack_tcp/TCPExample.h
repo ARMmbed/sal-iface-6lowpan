@@ -33,9 +33,9 @@ public:
     socket_error_t startEcho(const char *address, uint16_t port, const char *test_data, uint16_t length);
 
 protected:
-    void onDNS(Socket *s, struct socket_addr sa, const char* domain);
+    void onDNS(Socket *s, struct socket_addr sa, const char *domain);
     void onConnect(TCPStream *s);
-    void onReceive(Socket* s);
+    void onReceive(Socket *s);
     void onDisconnect(TCPStream *s);
     TCPStream sock;
     SocketAddr _resolvedAddr;
