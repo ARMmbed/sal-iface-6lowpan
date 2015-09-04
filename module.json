@@ -6,7 +6,6 @@
   "author": "Arto Kinnunen <arto.kinnunen@arm.com>",
   "homepage": "https://github.com/ARMmbed/sal-iface-6lowpan",
   "license": "Apache-2.0",
-  "private": true,
   "dependencies": {
     "sal-stack-nanostack": "^2.1.0",
     "mbed-drivers": "~0.6.0",
