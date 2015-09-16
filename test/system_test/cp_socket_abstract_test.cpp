@@ -644,7 +644,7 @@ int socket_api_test_echo_client_connected(socket_stack_t stack, socket_address_f
         client_tx_done = false;
         client_rx_done = false;
         timedout = 0;
-        to.attach(onTimeout, 2*SOCKET_TEST_TIMEOUT);
+        to.attach(onTimeout, 5*SOCKET_TEST_TIMEOUT);
 
         if (connect) {
             err = api->send(&s, data, nWords * sizeof(uint16_t));
@@ -663,13 +663,8 @@ int socket_api_test_echo_client_connected(socket_stack_t stack, socket_address_f
                 if (!TEST_EQ(timedout, 0)) {
                     break;
                 }
-                if (!connect) {
-                    // Nanostack bug, it doesn't return sent bytes in TX_DONE
-                    if (!TEST_NEQ(client_tx_info.sentbytes, 0)) {
-                        break;
-                    }
-                } else {
-                    client_tx_info.sentbytes = nWords * sizeof(uint16_t);
+                if (!TEST_NEQ(client_tx_info.sentbytes, 0)) {
+                    break;
                 }
 
                 tx_bytes += client_tx_info.sentbytes;
