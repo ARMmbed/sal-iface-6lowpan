@@ -23,10 +23,13 @@
 #include "atmel-rf-driver/driverRFPhy.h"    // rf_device_register
 #include "test_cases.h"
 #include "mbed/test_env.h"
+#include "mbed-util/FunctionPointer.h"
 #define HAVE_DEBUG 1
 #include "ns_trace.h"
 
 #define TRACE_GROUP  "main"     // for traces
+
+using mbed::util::FunctionPointer0;
 
 // main IPv6 address
 // Note! Replies are coming from temporary address unless feature is disabled from server side.
