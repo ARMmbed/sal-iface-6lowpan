@@ -24,6 +24,7 @@
 #include "test_cases.h"
 #include "mbed/test_env.h"
 #include "mbed-util/FunctionPointer.h"
+#include "eventOS_scheduler.h"
 #define HAVE_DEBUG 1
 #include "ns_trace.h"
 
@@ -119,10 +120,7 @@ void schedule_test_execution(int delay_ms)
 
 void mesh_process_events(void)
 {
-    // call nanostack eventloop directly to get tests implemented in one function
-    // (nanostack is event based stack)
-    extern bool event_dispatch_cycle();
-    event_dispatch_cycle();
+    eventOS_scheduler_dispatch_event();
 }
 
 /*
