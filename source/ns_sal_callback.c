@@ -24,10 +24,12 @@
 #include "mbed-net-socket-abstract/socket_api.h"
 #include "sal-iface-6lowpan/ns_sal_callback.h"
 #include "ip6string.h"  //nanostack stoip6
+#include "sal-iface-6lowpan/ns_wrapper.h"
 #define HAVE_DEBUG 1
 #include "ns_trace.h"
 #define TRACE_GROUP  "ns_sal_cb"
 
+#define FUNC_ENTRY_TRACE_ENABLED
 #ifdef FUNC_ENTRY_TRACE_ENABLED
 #define FUNC_ENTRY_TRACE    tr_debug
 #else
@@ -39,9 +41,9 @@
  * \param socket socket to be used
  * \param e event to be send
  */
-void send_socket_callback(struct socket *socket, socket_event_t *e)
+void send_mbed_callback(struct socket *socket, socket_event_t *e)
 {
-    FUNC_ENTRY_TRACE("send_socket_callback() event=%d", e->event);
+    FUNC_ENTRY_TRACE("send_mbed_callback() event=%d", e->event);
     socket->event = e;
     ((socket_api_handler_t)(socket->handler))();
     socket->event = NULL;
@@ -54,7 +56,7 @@ void ns_sal_callback_name_resolved(void *context, const char *address)
     e.event = SOCKET_EVENT_DNS;
     e.i.d.domain = address;
     stoip6(address, strlen(address), e.i.d.addr.ipv6be);
-    send_socket_callback(socket, &e);
+    send_mbed_callback(socket, &e);
 }
 
 void ns_sal_callback_data_received(void *context, data_buff_t *data_buf)
@@ -77,13 +79,15 @@ void ns_sal_callback_data_received(void *context, data_buff_t *data_buf)
             }
             buf_tmp->next = data_buf;
         }
+    } else {
+        sock_data_s *sock_data_ptr = socket->impl;
+        sock_data_ptr->flags |= SOCK_FLAG_REMOTE_END_CLOSED;
     }
 
     e.event = SOCKET_EVENT_RX_DONE;
     e.sock = socket;
     e.i.e = SOCKET_ERROR_NONE;
-
-    send_socket_callback(socket, &e);
+    send_mbed_callback(socket, &e);
 }
 
 /*
@@ -96,7 +100,7 @@ void ns_sal_callback_tx_done(void *context, uint16_t length)
     e.event = SOCKET_EVENT_TX_DONE;
     e.sock = socket;
     e.i.t.sentbytes = length;
-    send_socket_callback(socket, &e);
+    send_mbed_callback(socket, &e);
 }
 
 /*
@@ -109,7 +113,7 @@ void ns_sal_callback_tx_error(void *context)
     e.event = SOCKET_EVENT_TX_ERROR;
     e.sock = socket;
     e.i.t.sentbytes = 0;
-    send_socket_callback(socket, &e);
+    send_mbed_callback(socket, &e);
 }
 
 void ns_sal_callback_connect(void *context)
@@ -119,7 +123,21 @@ void ns_sal_callback_connect(void *context)
     e.event = SOCKET_EVENT_CONNECT;
     socket->status |= SOCKET_STATUS_CONNECTED;
     e.sock = socket;
-    send_socket_callback(socket, &e);
+    send_mbed_callback(socket, &e);
+}
+
+void ns_sal_callback_pending_connection(void *context)
+{
+    socket_event_t e;
+    struct socket *socket = (struct socket *) context;
+
+    e.event = SOCKET_EVENT_ACCEPT;
+    e.sock = socket;
+    e.i.e = SOCKET_ERROR_NONE;
+    // use listening socket impl as a newImpl
+    e.i.a.newimpl = socket->impl;
+
+    send_mbed_callback(socket, &e);
 }
 
 void ns_sal_callback_disconnect(void *context)
@@ -129,6 +147,6 @@ void ns_sal_callback_disconnect(void *context)
     e.event = SOCKET_EVENT_DISCONNECT;
     socket->status &= ~SOCKET_STATUS_CONNECTED;
     e.sock = socket;
-    send_socket_callback(socket, &e);
+    send_mbed_callback(socket, &e);
 }
 

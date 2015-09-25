@@ -15,6 +15,7 @@
  */
 #ifndef _NS_SAL_CALLBACK_H_
 #define _NS_SAL_CALLBACK_H_
+
 /*
  * Buffer for the received datagram.
  * Every socket will contain received data in linked list.
@@ -59,6 +60,12 @@ void ns_sal_callback_tx_error(void *context);
  * \param context connected
  */
 void ns_sal_callback_connect(void *context);
+
+/*
+ * \brief Remote client wants to connect to listening socket
+ * \param context of the listening socket
+ */
+void ns_sal_callback_pending_connection(void *context);
 
 /*
  * \brief Socket disconnected callback

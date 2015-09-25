@@ -72,6 +72,8 @@ public:
             testID++;
             schedule_test_execution(1000);
             return;
+        }
+#if 0
         } else if (runAPITest(testIDAPI) != -1) {
             testIDAPI++;
             schedule_test_execution(1000);
@@ -81,6 +83,7 @@ public:
             schedule_test_execution(1000);
             return;
         }
+#endif
 
         if (loops == 1) {
             mesh_api->disconnect();
@@ -194,6 +197,15 @@ int runTest(int testID)
     switch(testID)
     {
     case 0:
+        rc = socket_api_test_connect_close(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_DGRAM, TEST_SERVER, TCP_PORT, mesh_process_events);
+        tests_pass = tests_pass && rc;
+
+        rc = ns_socket_test_connect_failure(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET6, SOCKET_STREAM,
+                TEST_SERVER, TEST_NO_SRV_PORT, mesh_process_events);
+        tests_pass = tests_pass && rc;
+        break;
+#if 0
+    case 0:
         rc = socket_api_test_create_destroy(SOCKET_STACK_NANOSTACK_IPV6, SOCKET_AF_INET4);
         tests_pass = tests_pass && rc;
         break;
@@ -234,6 +246,7 @@ int runTest(int testID)
                                             TEST_SERVER, TEST_NO_SRV_PORT, mesh_process_events);
         tests_pass = tests_pass && rc;
         break;
+#endif
     default:
         retVal = -1;
         break;

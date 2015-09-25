@@ -36,7 +36,7 @@
 #define MALLOC  ns_dyn_mem_alloc
 #define FREE    ns_dyn_mem_free
 
-//#define FUNC_ENTRY_TRACE_ENABLED
+#define FUNC_ENTRY_TRACE_ENABLED
 #ifdef FUNC_ENTRY_TRACE_ENABLED
 #define FUNC_ENTRY_TRACE    tr_debug
 #else
@@ -215,7 +215,7 @@ static socket_error_t ns_sal_socket_close(struct socket *sock)
         return SOCKET_ERROR_NULL_PTR;
     }
 
-    return_value = ns_wrapper_socket_close(sock->impl);
+    return_value = ns_wrapper_socket_shutdown(sock->impl);
 
     switch (return_value) {
         case 0:
@@ -344,10 +344,16 @@ socket_error_t ns_sal_socket_bind(struct socket *socket,
 socket_error_t ns_sal_start_listen(struct socket *socket,
                                    const uint32_t backlog)
 {
-    tr_error("start_listen() unimplemented!");
-    (void) socket;
-    (void) backlog;
-    return SOCKET_ERROR_UNIMPLEMENTED;
+    socket_error_t err = SOCKET_ERROR_NONE;
+    if (NULL == socket || NULL == socket->impl || backlog == 0 || backlog > 0xFF) {
+        return SOCKET_ERROR_BAD_ARGUMENT;
+    }
+
+    if (ns_wrapper_socket_listen(socket->impl, (uint8_t)backlog) < 0) {
+        err = SOCKET_ERROR_UNKNOWN;
+    }
+
+    return err;
 }
 
 /* socket_api function, see socket_api.h for details */
@@ -360,12 +366,30 @@ socket_error_t ns_sal_stop_listen(struct socket *socket)
 
 /* socket_api function, see socket_api.h for details */
 socket_error_t ns_sal_socket_accept(struct socket *socket,
-                                    socket_api_handler_t handler)
+        socket_api_handler_t handler)
 {
-    tr_error("accept() unimplemented!");
-    (void) socket;
-    (void) handler;
-    return SOCKET_ERROR_UNIMPLEMENTED;
+    FUNC_ENTRY_TRACE("ns_sal_socket_accept()");
+
+    sock_data_s *sock_data_ptr = (sock_data_s*)socket->impl;
+
+    // NOTE1, listening socket ID is in sock_data_ptr
+    // NOTE2, reusing sock_data_ptr
+    sock_data_ptr = ns_wrapper_socket_accept(sock_data_ptr->socket_id, socket);
+
+    if (sock_data_ptr == NULL) {
+        return SOCKET_ERROR_BAD_ALLOC;
+    } else if (-1 == sock_data_ptr->socket_id) {
+        ns_wrapper_release_socket_data(sock_data_ptr);
+        return SOCKET_ERROR_UNKNOWN;
+    }
+
+    socket->impl = sock_data_ptr;
+    // socket->family = SOCKET_STREAM; already set by listener
+    // sock->stack = SOCKET_STACK_NANOSTACK_IPV6; already set by listener
+    socket->handler = (void *) handler;
+    socket->rxBufChain = NULL;
+
+    return SOCKET_ERROR_NONE;
 }
 
 socket_error_t ns_sal_socket_reject(struct socket *socket)
@@ -478,9 +502,14 @@ socket_error_t ns_sal_socket_recv(struct socket *socket, void *buf,
     err = ns_sal_recv_validate(socket, buf, len);
     if (err != SOCKET_ERROR_NONE) {
         if (err == SOCKET_ERROR_WOULD_BLOCK) {
-            // check if connection is closed by remote end
-            if (!(socket->status & SOCKET_STATUS_CONNECTED))
-            {
+            sock_data_s *sock_data_ptr = socket->impl;
+            if (sock_data_ptr->flags & SOCK_FLAG_REMOTE_END_CLOSED) {
+                // remote end has closed connection, return 0 bytes with OK
+                // status to indicate this
+                *len = 0;
+                return SOCKET_ERROR_NONE;
+            } else if (!(socket->status & SOCKET_STATUS_CONNECTED)) {
+                // check if connection is already closed
                 *len = 0;
                 return SOCKET_ERROR_NO_CONNECTION;
             }

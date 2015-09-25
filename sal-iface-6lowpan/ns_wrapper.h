@@ -35,12 +35,16 @@ extern "C" {
 /* typedef for function pointer parameter */
 typedef void (*func_cb_t)(void);
 
+/* Flags indicating socket current state */
+#define SOCK_FLAG_REMOTE_END_CLOSED 0x01
+
 /*
  * Socket data attached to mbed socket structure.
  */
 typedef struct sock_data_ {
     int8_t socket_id;           /*!< allocated socket ID */
     int8_t security_session_id; /*!< Not used yet */
+    uint8_t flags;              /*!< Flags */
 } sock_data_s;
 
 /*
@@ -70,7 +74,7 @@ int8_t ns_wrapper_socket_free(sock_data_s *sock_data_ptr);
 /*
  * \brief Close NanoStack socket
  */
-int8_t ns_wrapper_socket_close(sock_data_s *sock_data_ptr);
+int8_t ns_wrapper_socket_shutdown(sock_data_s *sock_data_ptr);
 
 /*
  * \brief Connect NanoStack socket
@@ -86,6 +90,16 @@ int8_t ns_wrapper_socket_send(sock_data_s *sock_data_ptr, uint8_t *buffer, uint1
  * \brief Send data to NanoStack socket
  */
 int8_t ns_wrapper_socket_send_to(sock_data_s *sock_data_ptr, ns_address_t *address, uint8_t *buffer, uint16_t length);
+
+/*
+ * \brief Set socket to listening mode
+ */
+int8_t ns_wrapper_socket_listen(sock_data_s *sock_data_ptr, uint8_t backlog);
+
+/*
+ * \brief Accept socket connection
+ */
+sock_data_s *ns_wrapper_socket_accept(int8_t listen_socket_id, void *context);
 
 #ifdef __cplusplus
 }

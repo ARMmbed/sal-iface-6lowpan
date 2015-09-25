@@ -22,6 +22,7 @@ import socket
 import time
 
 cmd_reply_source_port = "#REPLY_BOUND_PORT:"
+cmd_client_socket = "#TRIGGER_TCP_CLIENT:"
 server_socket = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
 client_socket = None
 
@@ -45,6 +46,20 @@ def echo_data_loop(sock, data):
             break
         print "echoing bytes:", len(data)
         sock.sendall(data)
+
+#TCP client
+def start_tcp_client(sock, address,loop_count):
+    print "Start TCP client", address[0]
+    tcp_client_sock=socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+    print "connect..."
+    tcp_client_sock.connect((address[0], 7))
+    while loop_count:
+        print "send data..."
+        tcp_client_sock.send("Hello server#" + str(loop_count))
+        data=tcp_client_sock.recv(1024)
+        print "Received:", data
+        loop_count -=1
+    tcp_client_sock.close
 
 def runTCPServer():
     host = ''
@@ -72,7 +87,11 @@ def runTCPServer():
                 reply_source_port(client, address)
             elif data[0] == "\x00":
                 echo_data_loop(client, data)
+            elif data.startswith(cmd_client_socket):
+                client.sendall(data)
+                start_tcp_client(client, address,2)
             else:
+                print 'echoing...'
                 client.sendall(data)
                 time.sleep(1)
         client.close()

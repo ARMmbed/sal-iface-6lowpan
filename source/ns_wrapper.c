@@ -24,13 +24,14 @@
 #include "socket_api.h" // nanostack socket api
 #define HAVE_DEBUG 1
 #include "ns_trace.h"
-#include "../sal-iface-6lowpan/ns_sal_callback.h"
-#include "../sal-iface-6lowpan/ns_wrapper.h"
+#include "sal-iface-6lowpan/ns_sal_callback.h"
+#include "sal-iface-6lowpan/ns_wrapper.h"
 
 // For tracing we need to define define group
 #define TRACE_GROUP  "ns_wrap"
 
 /* function entry traces */
+#define FUNC_ENTRY_TRACE_ENABLED
 #ifdef FUNC_ENTRY_TRACE_ENABLED
 #define FUNC_ENTRY_TRACE    tr_debug
 #else
@@ -46,6 +47,7 @@ typedef struct _socket_context_map_t {
     void *context;
 } socket_context_map_t;
 
+// table of mbed sockets
 static socket_context_map_t socket_context_tbl[NS_WRAPPER_SOCKETS_MAX] = {{0}};
 
 /**** Private functions ****/
@@ -68,6 +70,8 @@ void ns_wrapper_data_received(socket_callback_t *sock_cb)
             ns_sal_callback_data_received(socket_context_tbl[sock_cb->socket_id].context, recv_buff);
             // allocated memory will be deallocated when application reads the data or when socket is closed
         }
+    } else {
+        ns_sal_callback_data_received(socket_context_tbl[sock_cb->socket_id].context, NULL);
     }
 }
 
@@ -96,8 +100,9 @@ void ns_wrapper_socket_callback(void *cb)
         case SOCKET_BIND_AUTH_FAIL:
             tr_debug("SOCKET_BIND_AUTH_FAIL");
             break;
-        case SOCKET_SERVER_CONNECT_TO_CLIENT:
-            tr_debug("SOCKET_SERVER_CONNECT_TO_CLIENT");
+        case SOCKET_INCOMING_CONNECTION:
+            tr_debug("SOCKET_INCOMING_CONNECTION");
+            ns_sal_callback_pending_connection(socket_context_tbl[sock_cb->socket_id].context);
             break;
         case SOCKET_TX_FAIL:
             tr_debug("SOCKET_TX_FAIL");
@@ -106,8 +111,8 @@ void ns_wrapper_socket_callback(void *cb)
             tr_debug("SOCKET_CONNECT_CLOSED");
             ns_sal_callback_disconnect(socket_context_tbl[sock_cb->socket_id].context);
             break;
-        case SOCKET_CONNECT_FAIL_CLOSED:
-            tr_debug("SOCKET_CONNECT_FAIL_CLOSED");
+        case SOCKET_CONNECTION_RESET:
+            tr_debug("SOCKET_CONNECTION_RESET");
             break;
         case SOCKET_NO_ROUTE:
             tr_debug("SOCKET_NO_ROUTE");
@@ -132,9 +137,28 @@ void ns_wrapper_release_socket_data(sock_data_s *sock_data_ptr)
 int8_t ns_wrapper_socket_free(sock_data_s *sock_data_ptr)
 {
     FUNC_ENTRY_TRACE("ns_wrapper_socket_free() sock=%d", sock_data_ptr->socket_id);
-    int8_t retval = socket_free(sock_data_ptr->socket_id);
+    int8_t retval = socket_close(sock_data_ptr->socket_id);
     ns_wrapper_release_socket_data(sock_data_ptr);
     return retval;
+}
+
+sock_data_s * ns_wrapper_socket_validate(sock_data_s *sock_data_ptr,  void *context)
+{
+    FUNC_ENTRY_TRACE("ns_wrapper_socket_validate() sock=%d", sock_data_ptr->socket_id);
+    if ((sock_data_ptr->socket_id >= 0) &&
+            (sock_data_ptr->socket_id < NS_WRAPPER_SOCKETS_MAX)) {
+        sock_data_ptr->security_session_id = 0;
+        sock_data_ptr->flags = 0;
+        // save context to table so that callbacks can be made to right socket
+        socket_context_tbl[sock_data_ptr->socket_id].context = context;
+    } else {
+        /* socket opening failed, free reserved data */
+        tr_error("invalid socket id");
+        FREE(sock_data_ptr);
+        sock_data_ptr = NULL;
+    }
+
+    return sock_data_ptr;
 }
 
 sock_data_s *ns_wrapper_socket_open(int8_t socket_type, int8_t identifier, void *context)
@@ -149,16 +173,7 @@ sock_data_s *ns_wrapper_socket_open(int8_t socket_type, int8_t identifier, void 
     if (NULL != sock_data_ptr) {
         sock_data_ptr->socket_id = socket_open(protocol, identifier,
                                                ns_wrapper_socket_callback);
-        if ((sock_data_ptr->socket_id >= 0) &&
-                (sock_data_ptr->socket_id < NS_WRAPPER_SOCKETS_MAX)) {
-            sock_data_ptr->security_session_id = 0;
-            // save context to table so that callbacks can be made to right socket
-            socket_context_tbl[sock_data_ptr->socket_id].context = context;
-        } else {
-            /* socket opening failed, free reserved data */
-            FREE(sock_data_ptr);
-            sock_data_ptr = NULL;
-        }
+        sock_data_ptr = ns_wrapper_socket_validate(sock_data_ptr, context);
     }
 
     return sock_data_ptr;
@@ -170,10 +185,10 @@ int8_t ns_wrapper_socket_bind(sock_data_s *sock_data_ptr, ns_address_t *address)
     return socket_bind(sock_data_ptr->socket_id, address);
 }
 
-int8_t ns_wrapper_socket_close(sock_data_s *sock_data_ptr)
+int8_t ns_wrapper_socket_shutdown(sock_data_s *sock_data_ptr)
 {
     FUNC_ENTRY_TRACE("ns_wrapper_socket_close() sock=%d", sock_data_ptr->socket_id);
-    int8_t error = socket_close(sock_data_ptr->socket_id, NULL);
+    int8_t error = socket_shutdown(sock_data_ptr->socket_id, SOCKET_SHUT_RDWR);
     return error;
 }
 
@@ -185,13 +200,30 @@ int8_t ns_wrapper_socket_connect(sock_data_s *sock_data_ptr, ns_address_t *addre
 
 int8_t ns_wrapper_socket_send(sock_data_s *sock_data_ptr, uint8_t *buffer, uint16_t length)
 {
-    FUNC_ENTRY_TRACE("ns_wrapper_socket_send: sock_id=%d, length=%d", sock_data_ptr->socket_id, length);
+    FUNC_ENTRY_TRACE("ns_wrapper_socket_send: sock=%d, length=%d", sock_data_ptr->socket_id, length);
     return socket_send(sock_data_ptr->socket_id, buffer, length);
 }
 
 int8_t ns_wrapper_socket_send_to(sock_data_s *sock_data_ptr, ns_address_t *addr, uint8_t *buffer, uint16_t length)
 {
-    FUNC_ENTRY_TRACE("ns_wrapper_socket_send_to: sock_id=%d, length=%d, port=%d", sock_data_ptr->socket_id, length, addr->identifier);
+    FUNC_ENTRY_TRACE("ns_wrapper_socket_send_to: sock=%d, length=%d, port=%d", sock_data_ptr->socket_id, length, addr->identifier);
     return socket_sendto(sock_data_ptr->socket_id, addr, buffer, length);
 }
 
+int8_t ns_wrapper_socket_listen(sock_data_s *sock_data_ptr, uint8_t backlog)
+{
+    FUNC_ENTRY_TRACE("ns_wrapper_socket_listen: sock=%d, backlog=%d", sock_data_ptr->socket_id, backlog);
+    return socket_listen(sock_data_ptr->socket_id, backlog);
+}
+
+sock_data_s *ns_wrapper_socket_accept(int8_t listen_socket_id, void *context)
+{
+    ns_address_t addr;
+    sock_data_s *sock_data_ptr = (sock_data_s *) MALLOC(sizeof(sock_data_s));
+    if (sock_data_ptr) {
+        sock_data_ptr->socket_id = socket_accept(listen_socket_id, &addr, ns_wrapper_socket_callback);
+        sock_data_ptr = ns_wrapper_socket_validate(sock_data_ptr, context);
+    }
+
+    return sock_data_ptr;
+}
