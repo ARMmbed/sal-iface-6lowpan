@@ -250,7 +250,7 @@ static void connect_close_handler(void)
     }
 }
 
-int socket_api_test_connect_close(socket_stack_t stack, socket_address_family_t af, socket_proto_family_t disable_family, const char *server, uint16_t port, run_func_t run_cb)
+int socket_api_test_connect_close(socket_stack_t stack, socket_address_family_t af, const char *server, uint16_t port, run_func_t run_cb)
 {
     struct socket s;
     int pfi;
@@ -272,10 +272,6 @@ int socket_api_test_connect_close(socket_stack_t stack, socket_address_family_t 
     // Create a socket for each protocol family
     for (pfi = SOCKET_PROTO_UNINIT + 1; pfi < SOCKET_PROTO_MAX; pfi++) {
         socket_proto_family_t pf = static_cast<socket_proto_family_t>(pfi);
-        if (disable_family == pfi) {
-            TEST_PRINT("Skipped proto family %d\r\n", pfi);
-            continue;
-        }
         // Zero the implementation
         s.impl = NULL;
         err = api->create(&s, af, pf, &connect_close_handler);
@@ -360,7 +356,7 @@ int ns_tcp_bind_and_remote_end_close(socket_stack_t stack, const char *server, u
     struct socket_addr addr;
     struct socket_addr in_any_addr;
     uint8_t data[50];
-    size_t len;
+    size_t len = 50;
 
     ConnectCloseSock = &s;
     TEST_CLEAR();
@@ -429,6 +425,9 @@ int ns_tcp_bind_and_remote_end_close(socket_stack_t stack, const char *server, u
     to.detach();
     TEST_EQ(timedout, 0);
     err = api->recv(&s, (void *)(&data), &len);
+    if (err != SOCKET_ERROR_NONE) {
+        printf("err = %d\r\n", err);
+    }
     TEST_EQ(err, SOCKET_ERROR_NONE);
 
     // verify that source port is returned
@@ -450,6 +449,9 @@ int ns_tcp_bind_and_remote_end_close(socket_stack_t stack, const char *server, u
 
     // try to read socket that is closed by remote end
     err = api->recv(&s, (void *)(&data), &len);
+    if (err != SOCKET_ERROR_NONE) {
+        printf("err = %d\r\n", err);
+    }
     TEST_EQ(err, SOCKET_ERROR_NO_CONNECTION);
 
     // close the connection
@@ -700,8 +702,7 @@ int socket_api_test_echo_client_connected(socket_stack_t stack, socket_address_f
                 memcpy(&rxaddr, &addr, sizeof(rxaddr));
                 // Receive from...
                 err = api->recv_from(&s, (void *)((uintptr_t) data + rx_bytes), &len, &rxaddr, &rxport);
-                // ON IPv6, replies are coming from temporary IP address, only 2 first part are valid
-                int rc = memcmp(&rxaddr.ipv6be, &addr.ipv6be, sizeof(rxaddr.ipv6be) / 2);
+                int rc = memcmp(&rxaddr.ipv6be, &addr.ipv6be, sizeof(rxaddr.ipv6be));
                 if (!TEST_EQ(rc, 0)) {
                     TEST_PRINT("Spurious receive packet\r\n");
                 }
@@ -1048,9 +1049,7 @@ int ns_udp_test_buffered_recv_from(socket_stack_t stack, socket_address_family_t
             // Receive from...
             err = api->recv_from(&sock, (void *)((uintptr_t) data + rx_bytes),
                                  &len, &rxaddr, &rxport);
-            // For IPv6 addresses, replies are coming from temporary IPv6 address, only 8 first bytes are the same
-            int rc = memcmp(&rxaddr.ipv6be, &addr.ipv6be,
-                            sizeof(rxaddr.ipv6be) / 2);
+            int rc = memcmp(&rxaddr.ipv6be, &addr.ipv6be, sizeof(rxaddr.ipv6be));
             if (!TEST_EQ(rc, 0)) {
                 TEST_PRINT("Spurious receive packet\r\n");
             }
@@ -1206,8 +1205,7 @@ int ns_socket_test_bind(socket_stack_t stack, socket_address_family_t af,
         memcpy(&rxaddr, &addr, sizeof(rxaddr));
         // Receive from...
         err = api->recv_from(&sock_srv, data, &len, &rxaddr, &rxport);
-        // ON IPv6, replies are coming from temporary IP address, only 2 first part are valid
-        int rc = memcmp(&rxaddr.ipv6be, &addr.ipv6be, sizeof(rxaddr.ipv6be) / 2);
+        int rc = memcmp(&rxaddr.ipv6be, &addr.ipv6be, sizeof(rxaddr.ipv6be));
         if (!TEST_EQ(rc, 0)) {
             TEST_PRINT("Spurious receive packet\r\n");
         }
@@ -1741,7 +1739,7 @@ test_exit:
     TEST_RETURN();
 }
 
-int ns_socket_test_connect_api(socket_stack_t stack)
+int ns_socket_test_connect_api(socket_stack_t stack, socket_proto_family_t pf)
 {
     struct socket sock;
     socket_error_t err;
@@ -1750,7 +1748,6 @@ int ns_socket_test_connect_api(socket_stack_t stack)
     struct socket_addr addr;
     uint16_t port = 10000;
     socket_address_family_t af = SOCKET_AF_INET6;
-    socket_proto_family_t pf = SOCKET_STREAM;
 
     TEST_CLEAR();
     TEST_PRINT("\r\n%s af: %d, pf: %d\r\n", __func__, (int) af, (int) pf);
@@ -1783,23 +1780,6 @@ int ns_socket_test_connect_api(socket_stack_t stack)
     // test with destroyed socket
     err = api->connect(&sock, &addr, port);
     TEST_EQ(err, SOCKET_ERROR_NULL_PTR);
-
-    // Create UDP socket
-    sock.impl = NULL;
-    pf = SOCKET_DGRAM;
-    // Create a socket
-    err = api->create(&sock, af, pf, &client_cb);
-    if (!TEST_EQ(err, SOCKET_ERROR_NONE)) {
-        TEST_EXIT();
-    }
-    // test connecting with UDP
-    err = api->connect(&sock, &addr, port);
-    TEST_EQ(err, SOCKET_ERROR_BAD_FAMILY);
-
-    // destroy the socket
-    err = api->destroy(&sock);
-    TEST_EQ(err, SOCKET_ERROR_NONE);
-
 
 test_exit:
     TEST_RETURN();
@@ -1836,25 +1816,18 @@ int ns_socket_test_bind_api(socket_stack_t stack, socket_address_family_t af,
 
     // test binding API
 
-    // address not IN_ANY
-    socket_addr address;
-    address.ipv6be[0] = 1;
-    err = api->bind(&sock_client, &address, CMD_REPLY_DIFF_LOCAL_PORT);
-    TEST_NEQ(err, SOCKET_ERROR_NONE);
-    memset(&address.ipv6be[0], 0, 16);
-
-    // test port 0
-    err = api->bind(&sock_client, &address, 0);
-    TEST_NEQ(err, SOCKET_ERROR_NONE);
-
     // test address NULL
     err = api->bind(&sock_client, NULL, CMD_REPLY_DIFF_LOCAL_PORT);
     TEST_NEQ(err, SOCKET_ERROR_NONE);
 
-    // test double binding
+    // address is set and port is set => OK
+    socket_addr address;
+    address.ipv6be[0] = 1;
     err = api->bind(&sock_client, &address, CMD_REPLY_DIFF_LOCAL_PORT);
     TEST_EQ(err, SOCKET_ERROR_NONE);
-    err = api->bind(&sock_client, &address, CMD_REPLY_DIFF_LOCAL_PORT);
+
+    // prevent port changing
+    err = api->bind(&sock_client, &address, CMD_REPLY_DIFF_LOCAL_PORT+1);
     TEST_NEQ(err, SOCKET_ERROR_NONE);
 
     // destroy the socket
@@ -1915,7 +1888,7 @@ test_exit:
     TEST_RETURN();
 }
 
-int ns_socket_test_send_api(socket_stack_t stack)
+int ns_socket_test_send_api(socket_stack_t stack, socket_proto_family_t pf)
 {
     struct socket sock;
     socket_error_t err;
@@ -1924,7 +1897,6 @@ int ns_socket_test_send_api(socket_stack_t stack)
     size_t len=1;
     uint8_t buf[10];
     socket_address_family_t af = SOCKET_AF_INET6;
-    socket_proto_family_t pf = SOCKET_STREAM;
 
     TEST_CLEAR();
     TEST_PRINT("\r\n%s af: %d, pf: %d\r\n", __func__, (int) af, (int) pf);
@@ -1952,7 +1924,13 @@ int ns_socket_test_send_api(socket_stack_t stack)
 
     // test zero length
     err = api->send(&sock, (void*)&buf, 0);
-    TEST_EQ(err, SOCKET_ERROR_BAD_ARGUMENT);
+    if (pf == SOCKET_STREAM) {
+        // 0-length packet not allowed in TCP
+        TEST_EQ(err, SOCKET_ERROR_BAD_ARGUMENT);
+    } else if (pf == SOCKET_DGRAM) {
+        // UDP socket is not connected
+        TEST_EQ(err, SOCKET_ERROR_UNKNOWN);
+    }
 
     // destroy the socket
     err = api->destroy(&sock);
@@ -1962,27 +1940,11 @@ int ns_socket_test_send_api(socket_stack_t stack)
     err = api->send(&sock, (void*)&buf, len);
     TEST_EQ(err, SOCKET_ERROR_NULL_PTR);
 
-    // Zero the socket implementation and test with UDP socket
-    sock.impl = NULL;
-    pf = SOCKET_DGRAM;
-    // Create a UDP socket
-    err = api->create(&sock, af, pf, &client_cb);
-    if (!TEST_EQ(err, SOCKET_ERROR_NONE)) {
-        TEST_EXIT();
-    }
-
-    err = api->send(&sock, (void*)&buf, len);
-    TEST_EQ(err, SOCKET_ERROR_BAD_FAMILY);
-
-    // destroy the socket
-    err = api->destroy(&sock);
-    TEST_EQ(err, SOCKET_ERROR_NONE);
-
     test_exit:
     TEST_RETURN();
 }
 
-int ns_socket_test_recv_api(socket_stack_t stack)
+int ns_socket_test_recv_api(socket_stack_t stack, socket_proto_family_t pf)
 {
     struct socket sock;
     socket_error_t err;
@@ -1991,7 +1953,6 @@ int ns_socket_test_recv_api(socket_stack_t stack)
     size_t len=1;
     uint8_t buf[10];
     socket_address_family_t af = SOCKET_AF_INET6;
-    socket_proto_family_t pf = SOCKET_STREAM;
 
     TEST_CLEAR();
     TEST_PRINT("\r\n%s af: %d, pf: %d\r\n", __func__, (int) af, (int) pf);
@@ -2034,35 +1995,17 @@ int ns_socket_test_recv_api(socket_stack_t stack)
     err = api->recv(&sock, (void*)&buf, &len);
     TEST_EQ(err, SOCKET_ERROR_NULL_PTR);
 
-    // Zero the socket implementation and test with UDP socket
-    sock.impl = NULL;
-    len = 10;
-    pf = SOCKET_DGRAM;
-    // Create a UDP socket
-    err = api->create(&sock, af, pf, &client_cb);
-    if (!TEST_EQ(err, SOCKET_ERROR_NONE)) {
-        TEST_EXIT();
-    }
-
-    err = api->recv(&sock, (void*)&buf, &len);
-    TEST_EQ(err, SOCKET_ERROR_BAD_FAMILY);
-
-    // destroy the socket
-    err = api->destroy(&sock);
-    TEST_EQ(err, SOCKET_ERROR_NONE);
-
     test_exit:
     TEST_RETURN();
 }
 
-int ns_socket_test_close_api(socket_stack_t stack)
+int ns_socket_test_close_api(socket_stack_t stack, socket_proto_family_t pf)
 {
     struct socket sock;
     socket_error_t err;
     const struct socket_api *api = socket_get_api(stack);
     client_socket = &sock;
     socket_address_family_t af = SOCKET_AF_INET6;
-    socket_proto_family_t pf = SOCKET_STREAM;
     struct socket_addr in_any_addr;
 
     TEST_CLEAR();
@@ -2093,7 +2036,11 @@ int ns_socket_test_close_api(socket_stack_t stack)
     TEST_EQ(err, SOCKET_ERROR_NONE);
 
     err = api->close(&sock);
-    TEST_EQ(err, SOCKET_ERROR_NO_CONNECTION);
+    if (pf == SOCKET_STREAM) {
+        TEST_EQ(err, SOCKET_ERROR_NO_CONNECTION);
+    } else {
+        TEST_EQ(err, SOCKET_ERROR_NONE);
+    }
 
     // destroy the socket
     err = api->destroy(&sock);
@@ -2102,26 +2049,6 @@ int ns_socket_test_close_api(socket_stack_t stack)
     // test with destroyed socket
     err = api->close(&sock);
     TEST_EQ(err, SOCKET_ERROR_NULL_PTR);
-
-    // Zero the socket implementation and test with UDP socket
-    sock.impl = NULL;
-    pf = SOCKET_DGRAM;
-    // Create a UDP socket
-    err = api->create(&sock, af, pf, &client_cb);
-    if (!TEST_EQ(err, SOCKET_ERROR_NONE)) {
-        TEST_EXIT();
-    }
-    // bind to port
-    memset(&in_any_addr, 0 , sizeof(in_any_addr));
-    err = api->bind(&sock, &in_any_addr, 8080);
-    TEST_EQ(err, SOCKET_ERROR_NONE);
-
-    err = api->close(&sock);
-    TEST_EQ(err, SOCKET_ERROR_BAD_FAMILY);
-
-    // destroy the socket
-    err = api->destroy(&sock);
-    TEST_EQ(err, SOCKET_ERROR_NONE);
 
     test_exit:
     TEST_RETURN();

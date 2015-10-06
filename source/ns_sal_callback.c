@@ -28,6 +28,7 @@
 #include "ns_trace.h"
 #define TRACE_GROUP  "ns_sal_cb"
 
+//#define FUNC_ENTRY_TRACE_ENABLED
 #ifdef FUNC_ENTRY_TRACE_ENABLED
 #define FUNC_ENTRY_TRACE    tr_debug
 #else

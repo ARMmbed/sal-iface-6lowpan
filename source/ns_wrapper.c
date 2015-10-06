@@ -30,6 +30,7 @@
 // For tracing we need to define define group
 #define TRACE_GROUP  "ns_wrap"
 
+//#define FUNC_ENTRY_TRACE_ENABLED
 /* function entry traces */
 #ifdef FUNC_ENTRY_TRACE_ENABLED
 #define FUNC_ENTRY_TRACE    tr_debug

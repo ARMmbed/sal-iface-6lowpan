@@ -27,7 +27,7 @@ typedef void (*run_func_t)(void);
  * */
 int socket_api_test_create_destroy(socket_stack_t stack, socket_address_family_t disable_family);
 int socket_api_test_socket_str2addr(socket_stack_t stack, socket_address_family_t disable_family);
-int socket_api_test_connect_close(socket_stack_t stack, socket_address_family_t af, socket_proto_family_t disable_family, const char *server, uint16_t port, run_func_t run_cb);
+int socket_api_test_connect_close(socket_stack_t stack, socket_address_family_t af, const char *server, uint16_t port, run_func_t run_cb);
 int socket_api_test_echo_client_connected(socket_stack_t stack, socket_address_family_t af, socket_proto_family_t pf, bool connect,
         const char *server, uint16_t port, run_func_t run_cb, uint16_t max_packet_size);
 
@@ -98,7 +98,7 @@ int ns_socket_test_send_to_api(socket_stack_t stack);
 /*
  * \brief Test connect API with error values.
  */
-int ns_socket_test_connect_api(socket_stack_t stack);
+int ns_socket_test_connect_api(socket_stack_t stack, socket_proto_family_t pf);
 
 /*
  * \brief Test socket binding API
@@ -113,17 +113,17 @@ int ns_socket_test_resolve_api(socket_stack_t stack, socket_address_family_t af,
 /*
  * \brief Test socket send API
   */
-int ns_socket_test_send_api(socket_stack_t stack);
+int ns_socket_test_send_api(socket_stack_t stack, socket_proto_family_t pf);
 
 /*
- * \brief Test socket send API
+ * \brief Test socket recv API
   */
-int ns_socket_test_recv_api(socket_stack_t stack);
+int ns_socket_test_recv_api(socket_stack_t stack, socket_proto_family_t pf);
 
 /*
  * \brief Test socket close API
   */
-int ns_socket_test_close_api(socket_stack_t stack);
+int ns_socket_test_close_api(socket_stack_t stack, socket_proto_family_t pf);
 
 /*
  * \brief Test APIs that are unimplemented

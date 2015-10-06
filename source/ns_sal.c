@@ -62,7 +62,9 @@ void ns_sal_copy_datagrams(struct socket *socket, uint8_t *dest, size_t *len,
 {
     data_buff_t *data_buf = (data_buff_t *) socket->rxBufChain;
 
-    convert_ns_addr_to_mbed(addr, &data_buf->ns_address, port);
+    if (addr && port) {
+        convert_ns_addr_to_mbed(addr, &data_buf->ns_address, port);
+    }
 
     if ((data_buf->length) > *len) {
         /* Partial copy, more data than space avail */
@@ -219,6 +221,9 @@ static socket_error_t ns_sal_socket_close(struct socket *sock)
 
     switch (return_value) {
         case 0:
+            if (sock->family == SOCKET_DGRAM) {
+                sock->status &= ~SOCKET_STATUS_CONNECTED;
+            }
             error = SOCKET_ERROR_NONE;
             break;
         case -1:
@@ -248,6 +253,9 @@ socket_error_t ns_sal_socket_connect(struct socket *sock,
     convert_mbed_addr_to_ns(&ns_address, address, port);
     switch (ns_wrapper_socket_connect(sock->impl, &ns_address)) {
         case 0:
+            if (sock->family == SOCKET_DGRAM) {
+                sock->status |= SOCKET_STATUS_CONNECTED;
+            }
             error_code = SOCKET_ERROR_NONE;
             break;
         case -1:
@@ -385,32 +393,26 @@ socket_error_t ns_sal_socket_send(struct socket *socket, const void *buf,
         return SOCKET_ERROR_NULL_PTR;
     }
 
-    if (SOCKET_DGRAM == socket->family) {
-        // UDP sockets can't be connected in mesh.
-        tr_error("send() not supported with SOCKET_DGRAM!");
-        err = SOCKET_ERROR_BAD_FAMILY;
-    } else if (SOCKET_STREAM == socket->family) {
-        int8_t status = ns_wrapper_socket_send(socket->impl, (uint8_t *) buf,
-                                               len);
-        switch (status) {
-            case 0:
-                err = SOCKET_ERROR_NONE;
-                break;
-            case -1:
-            case -6:
-                err = SOCKET_ERROR_BAD_ARGUMENT;
-                break;
-            case -2:
-                err = SOCKET_ERROR_BAD_ALLOC;
-                break;
-            case -3:
-                err = SOCKET_ERROR_NO_CONNECTION;
-                break;
-            default:
-                /* -4, 5 */
-                err = SOCKET_ERROR_UNKNOWN;
-                break;
-        }
+    int8_t status = ns_wrapper_socket_send(socket->impl, (uint8_t *) buf,
+            len);
+    switch (status) {
+        case 0:
+            err = SOCKET_ERROR_NONE;
+            break;
+        case -1:
+        case -6:
+            err = SOCKET_ERROR_BAD_ARGUMENT;
+            break;
+        case -2:
+            err = SOCKET_ERROR_BAD_ALLOC;
+            break;
+        case -3:
+            err = SOCKET_ERROR_NO_CONNECTION;
+            break;
+        default:
+            /* -4, 5 */
+            err = SOCKET_ERROR_UNKNOWN;
+            break;
     }
     return err;
 }
@@ -468,14 +470,8 @@ socket_error_t ns_sal_socket_recv(struct socket *socket, void *buf,
 {
     FUNC_ENTRY_TRACE("ns_sal_socket_recv() len=%d", *len);
 
-    socket_error_t err;
+    socket_error_t err = ns_sal_recv_validate(socket, buf, len);
 
-    if (SOCKET_DGRAM == socket->family) {
-        tr_error("recv() not supported with SOCKET_DGRAM!");
-        return SOCKET_ERROR_BAD_FAMILY;
-    }
-
-    err = ns_sal_recv_validate(socket, buf, len);
     if (err != SOCKET_ERROR_NONE) {
         if (err == SOCKET_ERROR_WOULD_BLOCK) {
             // check if connection is closed by remote end
@@ -488,7 +484,11 @@ socket_error_t ns_sal_socket_recv(struct socket *socket, void *buf,
         return err;
     }
 
-    ns_sal_copy_stream(socket, buf, len);
+    if (SOCKET_DGRAM == socket->family) {
+        ns_sal_copy_datagrams(socket, buf, len, NULL, NULL);
+    } else {
+        ns_sal_copy_stream(socket, buf, len);
+    }
 
     //tr_debug("received %d bytes", *len);
 
@@ -522,16 +522,7 @@ socket_error_t ns_sal_socket_recv_from(struct socket *socket, void *buf,
 /* socket_api function, see socket_api.h for details */
 uint8_t ns_sal_socket_is_connected(const struct socket *socket)
 {
-    tr_error("is_connected() unimplemented!");
-    if (SOCKET_DGRAM == socket->family) {
-        // UDP sockets can't be connected in NanoStack */
-        return 0;
-    } else if (SOCKET_STREAM == socket->family) {
-        // TODO, implement for TCP sockets
-        return 0;
-    }
-
-    return 0;
+    return (socket->status & SOCKET_STATUS_CONNECTED);
 }
 
 /* socket_api function, see socket_api.h for details */
