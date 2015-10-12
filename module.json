@@ -8,13 +8,13 @@
   "license": "Apache-2.0",
   "dependencies": {
     "sal-stack-nanostack": "^3.0.0",
-    "mbed-drivers": "~0.9.0",
-    "sal": "~0.2.0",
+    "mbed-drivers": "<1.0.0",
+    "sal": "<1.0.0",
     "nanostack-libservice": "^3.0.1"
   },
   "testDependencies": {
-    "mbed-mesh-api": "~0.3.0",
-    "sockets": "~0.5.0",
+    "mbed-mesh-api": "<1.0.0",
+    "sockets": "<1.0.0",
     "atmel-rf-driver": "~0.0.18"
   },
   "targetDependencies": {}
