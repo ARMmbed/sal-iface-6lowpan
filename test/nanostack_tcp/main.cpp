@@ -16,7 +16,7 @@
 
 #include "mbed.h"
 #include <mbed-net-socket-abstract/socket_api.h>
-#include <mbed-net-sockets/TCPStream.h>
+#include "sockets/TCPStream.h"
 #include "atmel-rf-driver/driverRFPhy.h"    // rf_device_register
 #include "mbed-mesh-api/Mesh6LoWPAN_ND.h"
 #include "mbed-mesh-api/MeshInterfaceFactory.h"

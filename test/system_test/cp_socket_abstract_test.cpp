@@ -2123,6 +2123,12 @@ int ns_socket_test_unimplemented_apis(socket_stack_t stack)
     err = api->get_remote_port(&sock, &port);
     TEST_EQ(err, SOCKET_ERROR_UNIMPLEMENTED);
 
+    err = api->set_option(&sock, SOCKET_PROTO_LEVEL_TCP, SOCKET_OPT_NAGGLE, NULL, 0);
+    TEST_EQ(err, SOCKET_ERROR_UNIMPLEMENTED);
+
+    err = api->get_option(&sock, SOCKET_PROTO_LEVEL_UDP, SOCKET_OPT_KEEPALIVE, NULL, 0);
+    TEST_EQ(err, SOCKET_ERROR_UNIMPLEMENTED);
+
     // destroy the socket
     err = api->destroy(&sock);
     TEST_EQ(err, SOCKET_ERROR_NONE);

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 #include "mbed.h"
-#include <mbed-net-sockets/UDPSocket.h>
+#include "sockets/UDPSocket.h"
 #include <mbed-net-socket-abstract/socket_api.h>
 #include "UDPTest.h"
 
