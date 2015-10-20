@@ -174,9 +174,6 @@ void app_start(int, char **)
     mesh_api = (Mesh6LoWPAN_ND *)MeshInterfaceFactory::createInterface(MESH_TYPE_6LOWPAN_ND);
     err = mesh_api->init(rf_device_register(), mesh_network_callback);
 
-    ns_socket_test_unimplemented_apis(SOCKET_STACK_NANOSTACK_IPV6);
-
-
     if (!TEST_EQ(err, MESH_ERROR_NONE)) {
         return;
     }
