@@ -520,6 +520,34 @@ socket_error_t ns_sal_socket_recv_from(struct socket *socket, void *buf,
 }
 
 /* socket_api function, see socket_api.h for details */
+socket_error_t ns_sal_socket_set_option(struct socket *socket, const socket_proto_level_t level,
+        const socket_option_type_t type, const void *option, const size_t optionSize)
+{
+    tr_error("ns_sal_socket_set_option() unimplemented!");
+    (void) socket;
+    (void) level;
+    (void) type;
+    (void) option;
+    (void) optionSize;
+
+    return SOCKET_ERROR_UNIMPLEMENTED;
+}
+
+/* socket_api function, see socket_api.h for details */
+socket_error_t ns_sal_socket_get_option(struct socket *socket, const socket_proto_level_t level,
+        const socket_option_type_t type, void *option, const size_t optionSize)
+{
+    tr_error("ns_sal_socket_get_option() unimplemented!");
+    (void) socket;
+    (void) level;
+    (void) type;
+    (void) option;
+    (void) optionSize;
+
+    return SOCKET_ERROR_UNIMPLEMENTED;
+}
+
+/* socket_api function, see socket_api.h for details */
 uint8_t ns_sal_socket_is_connected(const struct socket *socket)
 {
     return (socket->status & SOCKET_STATUS_CONNECTED);
@@ -599,6 +627,8 @@ const struct socket_api nanostack_socket_api = {
     .send_to = ns_sal_socket_send_to,
     .recv = ns_sal_socket_recv,
     .recv_from = ns_sal_socket_recv_from,
+    .set_option = ns_sal_socket_set_option,
+    .get_option = ns_sal_socket_get_option,
     .is_connected = ns_sal_socket_is_connected,
     .is_bound = ns_sal_socket_is_bound,
     .get_local_addr = ns_sal_socket_get_local_addr,

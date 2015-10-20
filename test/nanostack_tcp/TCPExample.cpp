@@ -15,7 +15,7 @@
  */
 #include "mbed.h"
 #include <mbed-net-socket-abstract/socket_api.h>
-#include <mbed-net-sockets/TCPStream.h>
+#include "sockets/TCPStream.h"
 
 // For tracing we need to define flag, have include and define group
 #define HAVE_DEBUG 1
