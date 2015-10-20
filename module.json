@@ -9,7 +9,7 @@
   "dependencies": {
     "sal-stack-nanostack": "^3.0.0",
     "mbed-drivers": "<1.0.0",
-    "sal": "<1.0.0",
+    "sal": "^1.0.0",
     "nanostack-libservice": "^3.0.1"
   },
   "testDependencies": {
