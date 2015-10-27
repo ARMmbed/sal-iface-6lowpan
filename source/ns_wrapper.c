@@ -91,33 +91,34 @@ void ns_wrapper_socket_callback(void *cb)
             tr_debug("SOCKET_BIND_DONE");
             ns_sal_callback_connect(socket_context_tbl[sock_cb->socket_id].context);
             break;
-        case SOCKET_BIND_FAIL:
+        case SOCKET_BIND_FAIL: // Not used in NS
             tr_debug("SOCKET_BIND_FAIL");
             break;
-        case SOCKET_BIND_AUTH_FAIL:
+        case SOCKET_BIND_AUTH_FAIL: // Not used in NS
             tr_debug("SOCKET_BIND_AUTH_FAIL");
             break;
-        case SOCKET_SERVER_CONNECT_TO_CLIENT:
+        case SOCKET_SERVER_CONNECT_TO_CLIENT: // Not used in NS
             tr_debug("SOCKET_SERVER_CONNECT_TO_CLIENT");
             break;
         case SOCKET_TX_FAIL:
             tr_debug("SOCKET_TX_FAIL");
+            ns_sal_callback_tx_error(socket_context_tbl[sock_cb->socket_id].context);
             break;
         case SOCKET_CONNECT_CLOSED:
             tr_debug("SOCKET_CONNECT_CLOSED");
             ns_sal_callback_disconnect(socket_context_tbl[sock_cb->socket_id].context);
             break;
-        case SOCKET_CONNECT_FAIL_CLOSED:
+        case SOCKET_CONNECT_FAIL_CLOSED: // Not used in NS
             tr_debug("SOCKET_CONNECT_FAIL_CLOSED");
             break;
         case SOCKET_NO_ROUTE:
             tr_debug("SOCKET_NO_ROUTE");
+            ns_sal_callback_tx_error(socket_context_tbl[sock_cb->socket_id].context);
             break;
         case SOCKET_TX_DONE:
             tr_debug("SOCKET_TX_DONE, %d bytes sent", sock_cb->d_len);
             ns_sal_callback_tx_done(socket_context_tbl[sock_cb->socket_id].context, sock_cb->d_len);
             break;
-
         default:
             // SOCKET_NO_RAM, error case for SOCKET_TX_DONE
             ns_sal_callback_tx_error(socket_context_tbl[sock_cb->socket_id].context);
