@@ -21,7 +21,7 @@
 
 #include <string.h> // strlen
 #include "ns_address.h"
-#include "mbed-net-socket-abstract/socket_api.h"
+#include "sal/socket_api.h"
 #include "sal-iface-6lowpan/ns_sal_callback.h"
 #include "ip6string.h"  //nanostack stoip6
 #define HAVE_DEBUG 1

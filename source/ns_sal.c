@@ -19,7 +19,7 @@
  */
 
 #include <string.h> // memcpy
-#include <mbed-net-socket-abstract/socket_api.h>
+#include "sal/socket_api.h"
 #include "ns_address.h"
 #include "net_interface.h"
 #include "ip6string.h"  //stoip6

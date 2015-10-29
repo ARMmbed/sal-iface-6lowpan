@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "mbed.h"
+#include "mbed-drivers/mbed.h"
 #include "sockets/UDPSocket.h"
-#include <mbed-net-socket-abstract/socket_api.h>
+#include "sal/socket_api.h"
 #include "UDPTest.h"
 
 

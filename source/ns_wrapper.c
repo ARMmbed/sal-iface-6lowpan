@@ -24,8 +24,8 @@
 #include "socket_api.h" // nanostack socket api
 #define HAVE_DEBUG 1
 #include "ns_trace.h"
-#include "../sal-iface-6lowpan/ns_sal_callback.h"
-#include "../sal-iface-6lowpan/ns_wrapper.h"
+#include "sal-iface-6lowpan/ns_sal_callback.h"
+#include "sal-iface-6lowpan/ns_wrapper.h"
 
 // For tracing we need to define define group
 #define TRACE_GROUP  "ns_wrap"

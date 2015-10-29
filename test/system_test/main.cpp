@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-#include "mbed.h"
+#include "mbed-drivers/mbed.h"
 #include "sockets/UDPSocket.h"
-#include <mbed-net-socket-abstract/socket_api.h>
-#include <mbed-net-socket-abstract/test/ctest_env.h>
+#include "sal/socket_api.h"
+#include "sal/test/ctest_env.h"
 #include "mbed-mesh-api/Mesh6LoWPAN_ND.h"
 #include "mbed-mesh-api/MeshInterfaceFactory.h"
 #include "atmel-rf-driver/driverRFPhy.h"    // rf_device_register
 #include "test_cases.h"
-#include "mbed/test_env.h"
+#include "mbed-drivers/test_env.h"
 #include "core-util/FunctionPointer.h"
 #include "eventOS_scheduler.h"
 #define HAVE_DEBUG 1

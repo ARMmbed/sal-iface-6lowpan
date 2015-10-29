@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "mbed.h"
+#include "mbed-drivers/mbed.h"
 #include "sockets/UDPSocket.h"
-#include <mbed-net-socket-abstract/socket_api.h>
-#include "test_env.h"
+#include "sal/socket_api.h"
+#include "mbed-drivers/test_env.h"
 #include "mbed-mesh-api/Mesh6LoWPAN_ND.h"
 #include "mbed-mesh-api/MeshInterfaceFactory.h"
 #include "atmel-rf-driver/driverRFPhy.h"    // rf_device_register

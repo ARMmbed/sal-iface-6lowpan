@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include "mbed.h"
-#include <mbed-net-socket-abstract/socket_api.h>
+#include "mbed-drivers/mbed.h"
+#include "sal/socket_api.h"
 #include "sockets/TCPStream.h"
 #include "atmel-rf-driver/driverRFPhy.h"    // rf_device_register
 #include "mbed-mesh-api/Mesh6LoWPAN_ND.h"

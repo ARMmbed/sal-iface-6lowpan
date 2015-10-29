@@ -21,11 +21,11 @@
  * This file should be merged to original one once nanoStack tests are ready.
  */
 
-#include <mbed-net-socket-abstract/socket_api.h>
-#include <mbed-net-socket-abstract/test/ctest_env.h>
-#include <mbed/Timeout.h>
-#include <mbed/Ticker.h>
-#include <mbed/mbed.h>
+#include "sal/socket_api.h"
+#include "sal/test/ctest_env.h"
+#include "mbed-drivers/Timeout.h"
+#include "mbed-drivers/Ticker.h"
+#include "mbed-drivers/mbed.h"
 #include "test_cases.h"
 
 //#define TEST_DEBUG
