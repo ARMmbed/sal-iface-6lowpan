@@ -108,8 +108,8 @@ void ns_sal_callback_tx_error(void *context)
     socket_event_t e;
     struct socket *socket = (struct socket *) context;
     e.event = SOCKET_EVENT_TX_ERROR;
+    e.i.e = SOCKET_ERROR_UNKNOWN;
     e.sock = socket;
-    e.i.t.sentbytes = 0;
     send_socket_callback(socket, &e);
 }
 

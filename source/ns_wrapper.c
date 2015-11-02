@@ -133,7 +133,7 @@ void ns_wrapper_release_socket_data(sock_data_s *sock_data_ptr)
 
 int8_t ns_wrapper_socket_free(sock_data_s *sock_data_ptr)
 {
-    FUNC_ENTRY_TRACE("ns_wrapper_socket_free() sock=%d", sock_data_ptr->socket_id);
+    tr_debug("ns_wrapper_socket_free(%d)", sock_data_ptr->socket_id);
     int8_t retval = socket_free(sock_data_ptr->socket_id);
     ns_wrapper_release_socket_data(sock_data_ptr);
     return retval;
@@ -156,6 +156,7 @@ sock_data_s *ns_wrapper_socket_open(int8_t socket_type, int8_t identifier, void 
             sock_data_ptr->security_session_id = 0;
             // save context to table so that callbacks can be made to right socket
             socket_context_tbl[sock_data_ptr->socket_id].context = context;
+            tr_debug("ns_wrapper_socket_open(%d)", sock_data_ptr->socket_id);
         } else {
             /* socket opening failed, free reserved data */
             FREE(sock_data_ptr);
