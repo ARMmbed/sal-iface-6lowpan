@@ -57,7 +57,7 @@ static socket_context_map_t socket_context_tbl[NS_WRAPPER_SOCKETS_MAX] = {{0}};
 void ns_wrapper_data_received(socket_callback_t *sock_cb)
 {
     if (sock_cb->d_len > 0) {
-        data_buff_t *recv_buff = (data_buff_t *) ns_dyn_mem_alloc(
+        data_buff_t *recv_buff = (data_buff_t *) MALLOC(
                                      sizeof(data_buff_t) + sock_cb->d_len);
         if (NULL != recv_buff) {
             int16_t length = socket_read(sock_cb->socket_id,
@@ -68,6 +68,8 @@ void ns_wrapper_data_received(socket_callback_t *sock_cb)
 
             ns_sal_callback_data_received(socket_context_tbl[sock_cb->socket_id].context, recv_buff);
             // allocated memory will be deallocated when application reads the data or when socket is closed
+        } else {
+            tr_error("data_buff_t alloc failed!");
         }
     }
 }
@@ -159,6 +161,7 @@ sock_data_s *ns_wrapper_socket_open(int8_t socket_type, int8_t identifier, void 
             tr_debug("ns_wrapper_socket_open(%d)", sock_data_ptr->socket_id);
         } else {
             /* socket opening failed, free reserved data */
+            tr_error("sock_data_s alloc failed");
             FREE(sock_data_ptr);
             sock_data_ptr = NULL;
         }

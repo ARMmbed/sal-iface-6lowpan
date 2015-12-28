@@ -759,11 +759,10 @@ int socket_api_test_echo_client_connected(socket_stack_t stack, socket_address_f
         TEST_EQ(client_event.event, SOCKET_EVENT_DISCONNECT);
     }
 
+test_exit:
     // destroy the socket
     err = api->destroy(&s);
     TEST_EQ(err, SOCKET_ERROR_NONE);
-
-test_exit:
     TEST_PRINT(">>> KILL,ES\r\n");
     free(data);
     TEST_RETURN();
@@ -2123,7 +2122,7 @@ int ns_socket_test_unimplemented_apis(socket_stack_t stack)
     err = api->get_remote_port(&sock, &port);
     TEST_EQ(err, SOCKET_ERROR_UNIMPLEMENTED);
 
-    err = api->set_option(&sock, SOCKET_PROTO_LEVEL_TCP, SOCKET_OPT_NAGGLE, NULL, 0);
+    err = api->set_option(&sock, SOCKET_PROTO_LEVEL_TCP, SOCKET_OPT_NAGLE, NULL, 0);
     TEST_EQ(err, SOCKET_ERROR_UNIMPLEMENTED);
 
     err = api->get_option(&sock, SOCKET_PROTO_LEVEL_UDP, SOCKET_OPT_KEEPALIVE, NULL, 0);

@@ -19,16 +19,19 @@
 #include "sal/socket_api.h"
 #include "sal/test/ctest_env.h"
 #include "mbed-mesh-api/Mesh6LoWPAN_ND.h"
+#include "mbed-mesh-api/MeshThread.h"
 #include "mbed-mesh-api/MeshInterfaceFactory.h"
 #include "atmel-rf-driver/driverRFPhy.h"    // rf_device_register
 #include "test_cases.h"
 #include "mbed-drivers/test_env.h"
 #include "core-util/FunctionPointer.h"
 #include "eventOS_scheduler.h"
+#include "net_interface.h"
 #define HAVE_DEBUG 1
 #include "ns_trace.h"
 
 #define TRACE_GROUP  "main"     // for traces
+//#define APPL_BOOTSTRAP_MODE_THREAD
 
 using mbed::util::FunctionPointer0;
 
@@ -49,7 +52,7 @@ using mbed::util::FunctionPointer0;
 //#define TEST_DEVELOPMENT
 
 static mesh_connection_status_t mesh_network_state = MESH_DISCONNECTED;
-static Mesh6LoWPAN_ND *mesh_api = NULL;
+static AbstractMesh *mesh_api = NULL;
 static int tests_pass = 1;
 
 using namespace minar;
@@ -128,6 +131,11 @@ void mesh_process_events(void)
     eventOS_scheduler_dispatch_event();
 }
 
+
+static void begin_testing(void) {
+    schedule_test_execution(0);
+}
+
 /*
  * Callback from mesh network. Called when network state changes.
  */
@@ -136,8 +144,9 @@ void mesh_network_callback(mesh_connection_status_t mesh_state)
     tr_info("mesh_network_callback() %d", mesh_state);
     mesh_network_state = mesh_state;
     if (mesh_network_state == MESH_CONNECTED) {
-        tr_info("Connected to mesh network!");
-        schedule_test_execution(0);
+        tr_info("Connected to mesh network, start testing...!");
+        minar::Scheduler::postCallback(FunctionPointer0<void>(begin_testing).bind())
+                .delay(minar::milliseconds(1000));
     } else if (mesh_network_state == MESH_DISCONNECTED) {
         tr_info("All tests done!");
         MBED_HOSTTEST_RESULT(tests_pass);
@@ -171,8 +180,18 @@ void app_start(int, char **)
 
     testExecutor = new TestExecutor;
 
+#ifdef APPL_BOOTSTRAP_MODE_THREAD
+    mesh_api = MeshInterfaceFactory::createInterface(MESH_TYPE_THREAD);
+    uint8_t eui64[8];
+    int8_t rf_device_id = rf_device_register();
+    // Read mac address after registering the device.
+    rf_read_mac_address(&eui64[0]);
+    char *pskd = (char *)"Secret password";
+    err = ((MeshThread *)mesh_api)->init(rf_device_id, mesh_network_callback, eui64, pskd);
+#else /* APPL_BOOTSTRAP_MODE_THREAD */
     mesh_api = (Mesh6LoWPAN_ND *)MeshInterfaceFactory::createInterface(MESH_TYPE_6LOWPAN_ND);
-    err = mesh_api->init(rf_device_register(), mesh_network_callback);
+    err = ((Mesh6LoWPAN_ND *)mesh_api)->init(rf_device_register(), mesh_network_callback);
+#endif /* APPL_BOOTSTRAP_MODE */
 
     if (!TEST_EQ(err, MESH_ERROR_NONE)) {
         return;
