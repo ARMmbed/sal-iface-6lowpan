@@ -1,6 +1,6 @@
 {
   "name": "sal-iface-6lowpan",
-  "version": "1.0.8",
+  "version": "2.0.0",
   "description": "Socket abstraction for 6LoWPAN sockets.",
   "keywords": [],
   "author": "Arto Kinnunen <arto.kinnunen@arm.com>",
