@@ -54,6 +54,7 @@ using mbed::util::FunctionPointer0;
 static mesh_connection_status_t mesh_network_state = MESH_DISCONNECTED;
 static AbstractMesh *mesh_api = NULL;
 static int tests_pass = 1;
+static Serial &pc = get_stdio_serial();
 
 using namespace minar;
 
@@ -175,7 +176,6 @@ void app_start(int, char **)
     tests_pass = 1;
 
     // set tracing baud rate
-    static Serial pc(USBTX, USBRX);
     pc.baud(115200);
 
     testExecutor = new TestExecutor;

@@ -33,6 +33,7 @@
 static UDPTest *udpTest = NULL;
 static mesh_connection_status_t mesh_network_state = MESH_DISCONNECTED;
 static Mesh6LoWPAN_ND *mesh_api = NULL;
+static Serial &pc = get_stdio_serial();
 
 /*
  * Callback from a UDPExample appl indicating data is available.
@@ -79,7 +80,6 @@ void app_start(int, char **)
 {
     mesh_error_t status;
     // set tracing baud rate
-    static Serial pc(USBTX, USBRX);
     pc.baud(115200);
 
     // init mesh api

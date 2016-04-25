@@ -37,6 +37,7 @@
 static TCPExample *tcpExample = NULL;
 static uint8_t mesh_network_state = MESH_DISCONNECTED;
 static Mesh6LoWPAN_ND *mesh_api = NULL;
+static Serial &pc = get_stdio_serial();
 
 /*
  * Callback from TCPExample class, called when data is available
@@ -78,7 +79,6 @@ void app_start(int, char **)
 {
     mesh_error_t status;
     // set tracing baud rate
-    static Serial pc(USBTX, USBRX);
     pc.baud(115200);
 
     mesh_api = (Mesh6LoWPAN_ND *)MeshInterfaceFactory::createInterface(MESH_TYPE_6LOWPAN_ND);
