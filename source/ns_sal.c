@@ -295,7 +295,7 @@ uint32_t ns_sal_socket_periodic_interval(const struct socket *socket)
 {
     FUNC_ENTRY_TRACE("ns_sal_socket_periodic_interval()");
     if (SOCKET_STREAM == socket->family) {
-        return 0xffffffff;
+        return 0xfffff; // call periodic _task after ~17min
     }
     return 0;
 }
